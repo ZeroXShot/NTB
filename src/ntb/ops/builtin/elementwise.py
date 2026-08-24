@@ -28,6 +28,23 @@ def _binary(ctx: ShapeContext) -> dict[str, TensorType]:
     return {"out": TensorType(dtype=a.dtype, shape=shape, layout=layout)}
 
 
+def _fan_in(ctx: ShapeContext) -> dict[str, TensorType]:
+    """Sum everything arriving at one port, whatever arrives."""
+    arriving = ctx.many("in")
+    dtypes = {tensor.dtype for tensor in arriving}
+    if len(dtypes) > 1:
+        ctx.fail(
+            "every operand must share a dtype, got " + ", ".join(sorted(d.value for d in dtypes))
+        )
+    shape = arriving[0].shape
+    try:
+        for tensor in arriving[1:]:
+            shape = broadcast(shape, tensor.shape)
+    except ShapeError as exc:
+        ctx.fail(str(exc))
+    return {"out": TensorType(dtype=arriving[0].dtype, shape=shape, layout=arriving[0].layout)}
+
+
 def _op(name: str, doc: str, *, torch_fn: str, keras_fn: str, onnx_op: str) -> OpSpec:
     return register(
         OpSpec(
@@ -74,4 +91,22 @@ DIV = _op(
     onnx_op="Div",
 )
 
-OPS = (ADD, SUB, MUL, DIV)
+SUM = register(
+    OpSpec(
+        name="ntb.sum",
+        category="elementwise",
+        doc=(
+            "Sums every tensor wired into it. The port is variadic, which is what "
+            "lets a spatial rule fan several blocks into one."
+        ),
+        inputs=(PortSpec("in", variadic=True),),
+        outputs=(PortSpec("out"),),
+        shape_rule=_fan_in,
+        torch=BackendMapping(target="sum", kind=CallKind.FUNCTION),
+        keras=BackendMapping(target="keras.layers.Add", imports=("keras",)),
+        onnx=OnnxMapping(op_type="Sum"),
+        parity=ParityCase(inputs={}, fan_in={"in": ((2, 4), (2, 4), (2, 4))}),
+    )
+)
+
+OPS = (ADD, SUB, MUL, DIV, SUM)
