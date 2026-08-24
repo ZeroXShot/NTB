@@ -406,3 +406,36 @@ button:disabled {
 button.tiny.danger {
   width: auto;
 }
+
+.run.running {
+  border-color: var(--accent);
+}
+
+.run.failed {
+  border-color: var(--error);
+}
+
+.run h4 em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: normal;
+}
+
+.run-error {
+  color: var(--error);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.curve {
+  width: 100%;
+  height: 48px;
+  display: block;
+}
+
+.curve polyline {
+  fill: none;
+  stroke: #22b8cf;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
