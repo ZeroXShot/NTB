@@ -15,6 +15,7 @@ from ntb import __version__
 from ntb.emit import (
     EmitError,
     OnnxEmitError,
+    emit_keras_document,
     emit_torch_document,
     export_onnx_document,
 )
@@ -180,15 +181,17 @@ def resolve_command(
 @app.command()
 def emit(
     path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
-    backend: Annotated[str, typer.Option(help="torch or onnx (keras ships in phase 5).")] = "torch",
+    backend: Annotated[str, typer.Option(help="torch, keras or onnx.")] = "torch",
     out: Annotated[Path | None, typer.Option(help="Write here instead of standard output.")] = None,
-    class_name: Annotated[str | None, typer.Option(help="Name the generated class.")] = None,
+    class_name: Annotated[
+        str | None, typer.Option(help="Name the generated class, or the keras builder.")
+    ] = None,
     opset: Annotated[int, typer.Option(help="ONNX opset to target.")] = 20,
 ) -> None:
     """Generate framework code from a document."""
-    if backend not in {"torch", "onnx"}:
+    if backend not in {"torch", "keras", "onnx"}:
         typer.secho(
-            f"backend {backend!r} is not available; keras ships in phase 5",
+            f"backend {backend!r} is not available; choose torch, keras or onnx",
             fg=typer.colors.YELLOW,
             err=True,
         )
@@ -199,7 +202,11 @@ def emit(
         if backend == "onnx":
             _emit_onnx(document, out, opset)
             return
-        emitted = emit_torch_document(document, class_name=class_name)
+        emitted = (
+            emit_keras_document(document, function_name=class_name)
+            if backend == "keras"
+            else emit_torch_document(document, class_name=class_name)
+        )
     except (EmitError, OnnxEmitError, NotResolvable, ResolveError) as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
@@ -223,6 +230,36 @@ def _emit_onnx(document: Document, out: Path | None, opset: int) -> None:
     exported.save(out)
     nodes = len(exported.model.graph.node)
     typer.secho(f"wrote {out} (opset {exported.opset}, {nodes} nodes)", fg=typer.colors.GREEN)
+
+
+@app.command("import")
+def import_command(
+    path: Annotated[Path, typer.Argument(help="Path to a .onnx file.")],
+    out: Annotated[Path, typer.Option("--out", help="Where to write the .ntb.")],
+    name: Annotated[str | None, typer.Option(help="Name the imported model.")] = None,
+) -> None:
+    """Seed a document from an existing ONNX model. Weights are not carried."""
+    try:
+        from ntb.importers import OnnxImportError, import_onnx
+    except ImportError as exc:  # pragma: no cover - the extra is declared
+        typer.secho("reading ONNX needs: pip install 'ntb[onnx]'", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    try:
+        result = import_onnx(path, name=name)
+    except (OnnxImportError, OSError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    io.save(result.document, out)
+    module = result.document.root_module
+    typer.secho(
+        f"wrote {out} ({len(module.nodes)} nodes, {len(module.edges)} edges)",
+        fg=typer.colors.GREEN,
+    )
+    for problem in result.problems:
+        typer.secho(f"  {problem}", fg=typer.colors.YELLOW, err=True)
+    typer.echo("weights are not imported; the architecture is.")
 
 
 @app.command()
