@@ -3,7 +3,7 @@
 // canvas and the generated code follow immediately.
 
 import type { JSX } from "react";
-import type { Generator, Module, SpatialRule } from "../ir.gen";
+import type { Endpoint, Generator, Module, SpatialRule } from "../ir.gen";
 
 const KINDS = ["vertical_stack", "axis_projection", "neighborhood", "lattice"] as const;
 const AXES = ["x", "y", "z"] as const;
@@ -11,6 +11,7 @@ const AXES = ["x", "y", "z"] as const;
 interface Props {
   module: Module | undefined;
   modules: Module[];
+  onBind: (direction: "in" | "out", port: string, endpoint: Endpoint | null) => void;
   onGenerator: (generator: Generator) => void;
   onRule: (rule: SpatialRule) => void;
   onAddGenerator: (generator: Generator) => void;
@@ -27,6 +28,33 @@ export function Spatial(props: Props): JSX.Element {
 
   return (
     <div className="scroll spatial">
+      <header>
+        <h3>boundary</h3>
+      </header>
+      <p className="empty">
+        Where the model's own ports land. Leave one on <code>auto</code> and it binds to the
+        first free port, which is fine until a block has two plausible answers.
+      </p>
+      {(module?.inputs ?? []).map((port) => (
+        <Binding
+          key={`in-${port.name}`}
+          label={`in ${port.name}`}
+          value={module?.input_bindings?.[port.name]}
+          onChange={(endpoint) => props.onBind("in", port.name, endpoint)}
+        />
+      ))}
+      {(module?.outputs ?? []).map((port) => (
+        <Binding
+          key={`out-${port.name}`}
+          label={`out ${port.name}`}
+          value={module?.output_bindings?.[port.name]}
+          onChange={(endpoint) => props.onBind("out", port.name, endpoint)}
+        />
+      ))}
+      {(module?.inputs ?? []).length + (module?.outputs ?? []).length === 0 && (
+        <p className="empty">This module declares no ports yet.</p>
+      )}
+
       <header>
         <h3>generators</h3>
         <button
@@ -95,6 +123,36 @@ export function Spatial(props: Props): JSX.Element {
           onRemove={() => props.onRemoveRule(rule.id)}
         />
       ))}
+    </div>
+  );
+}
+
+function Binding({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: Endpoint | undefined;
+  onChange: (endpoint: Endpoint | null) => void;
+}): JSX.Element {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        placeholder="auto"
+        defaultValue={value ? `${value.node}.${value.port ?? "out"}` : ""}
+        onBlur={(event) => {
+          const text = event.target.value.trim();
+          if (!text) return onChange(null);
+          const dot = text.lastIndexOf(".");
+          onChange(
+            dot === -1
+              ? { node: text, port: "out" }
+              : { node: text.slice(0, dot), port: text.slice(dot + 1) },
+          );
+        }}
+      />
     </div>
   );
 }
