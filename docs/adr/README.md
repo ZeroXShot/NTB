@@ -18,3 +18,5 @@ an accepted record: the point is the trail.
 | [0006](0006-single-3d-canvas.md) | One 3D canvas; 2D is an orthographic camera | Accepted |
 | [0007](0007-keras3-covers-tensorflow.md) | Keras 3 covers TensorFlow and JAX | Accepted |
 | [0008](0008-canonical-json-on-disk.md) | .ntb is canonical JSON | Accepted |
+| [0009](0009-the-server-broadcasts-snapshots.md) | The studio server broadcasts snapshots, not patches | Accepted |
+| [0010](0010-the-studio-server-is-local-only.md) | The studio server answers only same-origin requests | Accepted |
