@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import pytest
-from tests.conftest import EXAMPLES
 
 from ntb.ir import Document, Edge, Endpoint, Module, Node, Port, PortDirection, TensorType, io
 from ntb.ir.types import DType
 from ntb.spatial import MODULE_OP, NotResolvable, ResolveError, resolve
+from tests.conftest import EXAMPLES
 
 
 def linear(node_id: str, out_features: int = 8, in_features: int = 8) -> Node:
@@ -54,8 +54,8 @@ class TestFlatModule:
             edges=(wire("e", "a", "b"),),
         )
         graph = resolve(Document(root="m", modules=(module,)))
-        assert [str(e) for e, _ in graph.inputs] == ["a.in"]
-        assert [str(e) for e in graph.outputs] == ["b.out"]
+        assert [(i.name, str(i.endpoint)) for i in graph.inputs] == [("x", "a.in")]
+        assert [(o.name, str(o.endpoint)) for o in graph.outputs] == [("y", "b.out")]
 
     def test_multi_port_ops_expose_the_right_free_ports(self) -> None:
         # ntb.add has ports a and b, not 'in'. Free-port detection reads the
@@ -69,7 +69,7 @@ class TestFlatModule:
             nodes=(Node(id="sum", op="ntb.add"),),
         )
         graph = resolve(Document(root="m", modules=(module,)))
-        assert sorted(str(e) for e, _ in graph.inputs) == ["sum.a", "sum.b"]
+        assert sorted(str(i.endpoint) for i in graph.inputs) == ["sum.a", "sum.b"]
 
 
 class TestNestedModules:
