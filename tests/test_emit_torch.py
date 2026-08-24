@@ -33,7 +33,7 @@ from ntb.ir.core import Origin
 from tests.conftest import EXAMPLES
 
 GOLDEN = Path(__file__).resolve().parent / "golden" / "torch"
-EXAMPLE_NAMES = ["mlp", "transformer_block", "cnn3d"]
+EXAMPLE_NAMES = ["mlp", "transformer_block", "cnn3d", "vertical_tower", "lattice_3d"]
 
 
 def core(op: str, **attrs: object) -> CoreNode:
@@ -156,6 +156,14 @@ class TestNaming:
         assert "a_b = " in source
         assert "a_b_2 = " in source
 
+    def test_two_instances_of_one_module_get_different_names(self) -> None:
+        # Both cells end in "mix". Naming a value after the last path segment
+        # made the second instance read the first one's tensor.
+        source = emit_torch_document(io.load(EXAMPLES / "lattice_3d.ntb")).source
+        assert "col0_0_mix = " in source
+        assert "col1_0_mix = " in source
+        assert "mix = sum([act])" not in source
+
 
 class TestGeneratedCodeRuns:
     """The only test that proves the emitter works: run what it produced."""
@@ -167,6 +175,8 @@ class TestGeneratedCodeRuns:
             ("mlp", (4, 784)),
             ("transformer_block", (2, 16, 512)),
             ("cnn3d", (2, 1, 32, 64, 64)),
+            ("vertical_tower", (4, 256)),
+            ("lattice_3d", (8, 64)),
         ],
     )
     def test_the_model_runs_and_matches_inferred_shapes(
@@ -207,3 +217,19 @@ class TestGeneratedCodeRuns:
 
         model(torch.randn(4, 784)).sum().backward()
         assert all(p.grad is not None for p in model.parameters())
+
+    @pytest.mark.torch
+    def test_every_cell_of_the_lattice_learns(self) -> None:
+        # 64 parameters across 16 generated cells. When two instances of one
+        # module shared a variable name, the emitted forward silently dropped
+        # most of them and only 24 saw a gradient.
+        torch = pytest.importorskip("torch")
+
+        emitted = emit_torch_document(io.load(EXAMPLES / "lattice_3d.ntb"))
+        namespace: dict[str, object] = {}
+        exec(compile(emitted.source, "lattice_3d.py", "exec"), namespace)
+        model = namespace[emitted.class_name]()  # type: ignore[operator]
+
+        model(torch.randn(8, 64)).square().mean().backward()
+        moving = [p for p in model.parameters() if p.grad is not None and p.grad.abs().sum() > 0]
+        assert len(moving) == len(list(model.parameters())) == 64
