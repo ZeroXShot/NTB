@@ -76,6 +76,11 @@ class AttrSpec:
     required: bool = False
     minimum: float | None = None
     choices: tuple[Any, ...] | None = None
+    #: Falls back to another attribute when absent (pooling stride defaults to
+    #: kernel_size). Resolving it here means every backend sees the same value;
+    #: leaving it implicit let torch and ONNX disagree, since ONNX defaults
+    #: strides to 1.
+    default_from: str = ""
 
     def validate(self, value: Any) -> str | None:
         """Return an error message, or None when ``value`` is acceptable."""
@@ -146,7 +151,45 @@ class BackendMapping:
     attr_map: Mapping[str, str] = field(default_factory=dict)
     constants: Mapping[str, Any] = field(default_factory=dict)
     imports: tuple[str, ...] = ()
+    #: Target chosen by the rank of the first input, when the backend splits one
+    #: NTB op across several names (BatchNorm1d/2d/3d).
+    rank_targets: Mapping[int, str] = field(default_factory=dict)
+    #: Pass all inputs as one list argument (``torch.cat([a, b], dim=1)``).
+    pack_inputs: bool = False
+    #: Fall an unconnected input back to another port (attention key -> query).
+    default_inputs: Mapping[str, str] = field(default_factory=dict)
+    #: Pass a named input as a keyword rather than positionally.
+    input_kwargs: Mapping[str, str] = field(default_factory=dict)
     notes: str = ""
+
+    def target_for(self, rank: int | None) -> str:
+        """The callable to emit, given the rank of the first input."""
+        if rank is not None and rank in self.rank_targets:
+            return self.rank_targets[rank]
+        return self.target
+
+
+@dataclass(frozen=True, slots=True)
+class ParamSpec:
+    """A learned tensor an ONNX node needs as an input.
+
+    torch and Keras layers own their weights; ONNX takes them as graph inputs.
+    ``shape`` entries are attribute expressions -- ``"out_features"``,
+    ``"in_channels // groups"`` -- or ``"*kernel_size"`` to splat a list
+    attribute. ``when`` names an attribute that must be true for the parameter
+    to exist at all, which is how an optional bias is expressed.
+    """
+
+    name: str
+    shape: tuple[str | int, ...]
+    when: str | None = None
+    #: Fill with ones rather than a random draw (normalisation scales).
+    ones: bool = False
+    #: Fill with zeros (biases, running means).
+    zeros: bool = False
+    #: The matching entry in the torch module state dict, which is what lets
+    #: the parity harness give both backends identical weights.
+    torch_name: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,9 +201,31 @@ class OnnxMapping:
     since_opset: int = 13
     attr_map: Mapping[str, str] = field(default_factory=dict)
     constants: Mapping[str, Any] = field(default_factory=dict)
+    #: Learned tensors this node takes, in the order ONNX expects them.
+    params: tuple[ParamSpec, ...] = ()
+    #: Final input order as tokens naming a port or a parameter. Defaults to
+    #: every port in declaration order followed by every parameter; Gather
+    #: needs it because the weight comes before the indices.
+    input_order: tuple[str, ...] = ()
     #: NTB-defined op: emits into the ``ntb.ops`` domain with a reference impl.
     custom: bool = False
     notes: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ParityCase:
+    """A concrete example the cross-backend numeric test is generated from.
+
+    Declaring one is part of declaring an op: without it the harness has no
+    shapes to feed and the op ships unverified.
+    """
+
+    inputs: Mapping[str, tuple[int, ...]]
+    attrs: Mapping[str, Any] = field(default_factory=dict)
+    #: Ports that take integer indices rather than a random float draw.
+    integer_inputs: tuple[str, ...] = ()
+    #: Upper bound for those indices.
+    index_limit: int = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +244,8 @@ class OpSpec:
     onnx: OnnxMapping | None = None
     #: Absolute tolerance used by the generated numeric-parity tests.
     parity_atol: float = 1e-5
+    #: The example the parity harness runs. None means the op is unverified.
+    parity: ParityCase | None = None
 
     def __post_init__(self) -> None:
         if not self.outputs:
@@ -199,8 +266,14 @@ class OpSpec:
         return {a.name: a.default for a in self.attrs if a.default is not None}
 
     def resolved_attrs(self, attrs: Mapping[str, Any]) -> dict[str, Any]:
-        """Author-supplied attributes layered on top of the declared defaults."""
-        return {**self.defaults(), **attrs}
+        """Author-supplied attributes over the declared defaults, fallbacks filled."""
+        resolved = {**self.defaults(), **attrs}
+        for attr in self.attrs:
+            if attr.default_from and resolved.get(attr.name) is None:
+                fallback = resolved.get(attr.default_from)
+                if fallback is not None:
+                    resolved[attr.name] = fallback
+        return resolved
 
     def backends(self) -> tuple[str, ...]:
         """Which backends can emit this op."""
