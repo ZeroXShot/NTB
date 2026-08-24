@@ -8,12 +8,36 @@ do not overlap: an unfinished foundation makes every later phase more expensive.
 | 0 | Repo, licence, CI matrix, ADRs | CI green on 9 os/python combinations | **done** |
 | 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | **done** |
 | 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | **done** |
-| 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | |
+| 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | **done** |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
 | 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 3 in detail
+
+- [x] Command bus: every mutation is an invertible command, and undo is a stack
+      of the inverses the bus hands back
+- [x] Session server: FastAPI, one authoritative document, WebSocket broadcast
+      of the whole session state ([ADR 9](adr/0009-the-server-broadcasts-snapshots.md))
+- [x] Same-origin policy on a server that can write files
+      ([ADR 10](adr/0010-the-studio-server-is-local-only.md))
+- [x] Op palette generated from the registry, so a new op needs no UI change
+- [x] One three.js scene, orthographic camera, instanced blocks, drag to place
+- [x] Inspector with attribute editors built from the registry's declarations
+- [x] Live diagnostics and live torch source, both computed by the server
+- [x] TypeScript IR types generated from the JSON Schema, drift-checked in CI
+- [x] `ntb studio`, with the bundle packaged inside the wheel
+
+Known limits, to revisit when they start to hurt:
+
+- Picking raycasts the instanced mesh rather than using a GPU id buffer. That is
+  the plan's approach for 10k nodes and is phase 4 work, when there are that many.
+- Connections are made by picking two blocks (`c`, then the target), not by
+  dragging port to port. Ports are drawn from the registry but not yet hit-tested.
+- A drag sends one `move_node` per release; there is no coalescing of a long
+  gesture into a single history entry beyond that.
 
 ## Phase 2 in detail
 
