@@ -87,5 +87,19 @@ export interface OpInfo {
   backends: string[];
 }
 
+export interface RunRecord {
+  id: string;
+  document: string;
+  status: "running" | "done" | "failed" | "stopped";
+  config: Record<string, unknown>;
+  startedAt: number;
+  endedAt: number | null;
+  error: string | null;
+  parameters: number | null;
+  totalSteps: number | null;
+  lastStep: number;
+  checkpoint: string | null;
+}
+
 /** A command as the bus expects it. The server is the one that validates it. */
 export type Command = { kind: string } & Record<string, unknown>;
