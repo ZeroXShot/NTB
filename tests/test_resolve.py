@@ -6,7 +6,7 @@ import pytest
 
 from ntb.ir import Document, Edge, Endpoint, Module, Node, Port, PortDirection, TensorType, io
 from ntb.ir.types import DType
-from ntb.spatial import MODULE_OP, NotResolvable, ResolveError, resolve
+from ntb.spatial import MODULE_OP, ResolveError, resolve
 from tests.conftest import EXAMPLES
 
 
@@ -114,22 +114,8 @@ class TestNestedModules:
 
     def test_a_module_node_without_a_target_is_refused(self) -> None:
         module = Module(id="m", nodes=(Node(id="x", op=MODULE_OP),))
-        with pytest.raises(ResolveError, match="'module' attribute is missing"):
+        with pytest.raises(ResolveError, match="does not name the module"):
             resolve(Document(root="m", modules=(module,)))
-
-
-class TestPhaseFourFeatures:
-    def test_a_generator_says_which_phase_expands_it(self) -> None:
-        document = io.load(EXAMPLES / "vertical_tower.ntb")
-        with pytest.raises(NotResolvable, match=r"Generator.*phase 4"):
-            resolve(document)
-
-    def test_a_spatial_rule_says_which_phase_resolves_it(self) -> None:
-        document = io.load(EXAMPLES / "vertical_tower.ntb")
-        lateral = document.module("lateral")
-        assert lateral is not None
-        with pytest.raises(NotResolvable, match=r"SpatialRule.*phase 4"):
-            resolve(document.model_copy(update={"root": "lateral"}))
 
 
 class TestShippedExamples:
