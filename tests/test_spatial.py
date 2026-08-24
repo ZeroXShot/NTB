@@ -29,6 +29,7 @@ from ntb.ir import (
 )
 from ntb.spatial import ResolveError, resolve
 from ntb.spatial.expr import ExpressionError, evaluate, is_expression, resolve_attrs
+from ntb.spatial.preview import BlockKind, LinkKind, preview
 from ntb.spatial.rules import Placed, RuleError, derive_pairs
 from tests.conftest import EXAMPLES
 
@@ -356,3 +357,57 @@ class TestShippedExample:
         report = infer_shapes(resolve(io.load(EXAMPLES / "vertical_tower.ntb")))
         assert report.ok
         assert str(report.type_of("stack-11/act", "out")) == "float32[batch, 256]"
+
+
+class TestPreview:
+    """What the studio draws: authored blocks, generated ones, derived links."""
+
+    def test_a_generator_shows_as_one_block_per_repetition(self) -> None:
+        result = preview(io.load(EXAMPLES / "vertical_tower.ntb"))
+        assert len(result.blocks) == 12
+        assert {b.kind for b in result.blocks} == {BlockKind.GENERATED}
+        assert result.blocks[3].pos == (0.0, 0.0, 3.0)
+        assert result.blocks[3].index == 3
+
+    def test_chaining_shows_as_links_between_repetitions(self) -> None:
+        result = preview(io.load(EXAMPLES / "vertical_tower.ntb"))
+        assert [link.kind for link in result.links] == [LinkKind.CHAIN] * 11
+        assert result.links[0].source == "stack"
+
+    def test_a_rule_shows_which_edges_it_derived(self) -> None:
+        result = preview(io.load(EXAMPLES / "lattice_3d.ntb"))
+        assert len(result.blocks) == 16
+        assert all(link.kind is LinkKind.RULE for link in result.links)
+        assert {link.source for link in result.links} == {"grid"}
+
+    def test_authored_nodes_and_edges_come_through_as_drawn(self) -> None:
+        result = preview(io.load(EXAMPLES / "mlp.ntb"))
+        assert {b.kind for b in result.blocks} == {BlockKind.NODE}
+        assert all(link.kind is LinkKind.EDGE for link in result.links)
+
+    def test_a_rule_that_cannot_apply_is_reported_not_raised(self) -> None:
+        # The studio has to keep drawing a document that is mid-edit.
+        module = Module(
+            id="m",
+            nodes=(
+                Node(id="a", op="ntb.relu", placement=Placement(pos=(0.0, 0.0, 0.0))),
+                Node(id="b", op="ntb.relu", placement=Placement(pos=(0.0, 0.0, 0.0))),
+            ),
+            spatial_rules=(SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=("a", "b")),),
+        )
+        result = preview(Document(root="m", modules=(module,)))
+        assert result.links == ()
+        assert "same point" in result.problems[0]
+
+    def test_a_rule_with_too_few_blocks_is_reported(self) -> None:
+        module = Module(
+            id="m",
+            nodes=(Node(id="a", op="ntb.relu"),),
+            spatial_rules=(
+                SpatialRule(id="r", kind=SpatialRuleKind.VERTICAL_STACK, members=("a",)),
+            ),
+        )
+        assert "fewer than two" in preview(Document(root="m", modules=(module,))).problems[0]
+
+    def test_an_unknown_module_previews_as_nothing(self) -> None:
+        assert preview(io.load(EXAMPLES / "mlp.ntb"), "ghost").blocks == ()
