@@ -7,6 +7,7 @@ from ntb.ir.document import Document, Module
 from ntb.ir.graph import Node
 from ntb.ops.registry import REGISTRY, OpRegistry, UnknownOpError
 from ntb.shapes.infer import ShapeIssue, ShapeReport, infer_shapes
+from ntb.spatial.expr import contains_expression
 from ntb.spatial.resolve import MODULE_OP, NotResolvable, ResolveError, resolve
 from ntb.validate.diagnostics import Code, Diagnostic, Location, Report, Severity
 
@@ -14,8 +15,9 @@ from ntb.validate.diagnostics import Code, Diagnostic, Location, Report, Severit
 def validate(document: Document, *, registry: OpRegistry = REGISTRY) -> Report:
     """Check ops, attributes and shapes, and report everything found."""
     found: list[Diagnostic] = []
+    known_modules = frozenset(m.id for m in document.modules)
     for module in document.modules:
-        found.extend(_check_module(module, registry))
+        found.extend(_check_module(module, registry, known_modules))
 
     # Shape inference needs a lowered graph. Report authoring problems first;
     # a document with unknown ops has nothing useful to infer.
@@ -24,7 +26,9 @@ def validate(document: Document, *, registry: OpRegistry = REGISTRY) -> Report:
     return Report(diagnostics=tuple(found))
 
 
-def _check_module(module: Module, registry: OpRegistry) -> list[Diagnostic]:
+def _check_module(
+    module: Module, registry: OpRegistry, known_modules: frozenset[str]
+) -> list[Diagnostic]:
     found: list[Diagnostic] = []
     known = module.node_ids
 
@@ -42,9 +46,11 @@ def _check_module(module: Module, registry: OpRegistry) -> list[Diagnostic]:
                     )
                 )
 
+    # A rule may name a generator, which stands for all of its instances.
+    addressable = known | {generator.id for generator in module.generators}
     for rule in module.spatial_rules:
         for member in rule.members:
-            if member not in known:
+            if member not in addressable:
                 found.append(
                     Diagnostic(
                         code=Code.STRUCTURE,
@@ -52,6 +58,17 @@ def _check_module(module: Module, registry: OpRegistry) -> list[Diagnostic]:
                         location=Location(module=module.id),
                     )
                 )
+
+    for generator in module.generators:
+        if generator.module not in known_modules:
+            found.append(
+                Diagnostic(
+                    code=Code.STRUCTURE,
+                    message=f"generator {generator.id!r} repeats unknown module "
+                    f"{generator.module!r}",
+                    location=Location(module=module.id),
+                )
+            )
     return found
 
 
@@ -82,6 +99,10 @@ def _check_node(module: Module, node: Node, registry: OpRegistry) -> list[Diagno
                     location=at,
                 )
             )
+            continue
+        # "$width * 2" is checked when it is evaluated against the parameters
+        # in scope, which this module does not know yet.
+        if contains_expression(value):
             continue
         problem = attr.validate(value)
         if problem is not None:
