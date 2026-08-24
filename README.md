@@ -3,11 +3,11 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.2.0, early.** The IR, a 31-op registry, symbolic shape inference,
-> validation, the torch and ONNX backends, the studio in 2D and 3D, and the
-> spatial semantics that make the project worth building all work today. Keras 3,
-> training inside NTB and the MCP server are next. See
-> [the roadmap](docs/roadmap.md).
+> **Status: 0.3.0, early.** The IR, a 31-op registry, symbolic shape inference,
+> validation, all three backends (torch, Keras 3, ONNX), ONNX import, the studio
+> in 2D and 3D, and the spatial semantics that make the project worth building
+> all work today. Training inside NTB and the MCP server are next. See
+> [the roadmap](docs/roadmap.md). Nothing is on PyPI until every phase is done.
 
 ## Why another model builder
 
@@ -24,15 +24,20 @@ three dimensions expressible at all.
 ## Install
 
 ```bash
-pip install ntb            # core: author, validate, inspect
-pip install "ntb[torch]"   # + PyTorch emission
-pip install "ntb[all]"     # + Keras 3, ONNX and the studio server
+git clone https://github.com/ZeroXShot/NTB && cd NTB
+pip install -e ".[all]"    # torch, Keras 3, ONNX and the studio server
 ```
+
+Extras are `torch`, `keras`, `onnx`, `server` and `all`; the core installs
+without any of them and can still author, validate and inspect a model. Keras 3
+needs a backend of its own: `KERAS_BACKEND=torch` reuses the one you have.
 
 The wheel is pure Python (`py3-none-any`), so Linux, macOS and Windows on both
 x86_64 and arm64 are supported by construction. It installs into the same
 environment as your existing torch or TensorFlow, so it sees your actual
-versions and hardware.
+versions and hardware. It is not published to PyPI yet: the format stays open to
+change until every phase is finished, and the first `.ntb` files in circulation
+should come from one that has stopped moving.
 
 ## Try it
 
@@ -45,7 +50,9 @@ ntb shapes examples/cnn3d.ntb            # the inferred type on every port
 ntb info examples/vertical_tower.ntb      # a 12-high stack built by a Generator
 ntb resolve examples/lattice_3d.ntb      # every edge geometry derived, marked
 ntb emit examples/mlp.ntb                # readable PyTorch source
+ntb emit examples/mlp.ntb --backend keras
 ntb emit examples/mlp.ntb --backend onnx --out mlp.onnx
+ntb import mlp.onnx --out seeded.ntb     # seed a document from a model you have
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
@@ -126,6 +133,11 @@ NTB-Core IR         flat typed DAG, no geometry
                ├──  keras3   covers TensorFlow and JAX
                └──  onnx     GraphProto, direct
 ```
+
+The same document, in all three, is the same model: 25 of the 25 verifiable ops
+are checked numerically identical between torch and Keras and between torch and
+onnxruntime, with the weights transferred so the comparison means something. The
+harness is generated from the op registry, so a new op brings its own test.
 
 Four rules hold the project together, and are written up in
 [docs/adr](docs/adr/):
