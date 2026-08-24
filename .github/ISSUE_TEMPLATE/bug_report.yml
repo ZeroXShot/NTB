@@ -1,0 +1,32 @@
+name: Bug report
+description: Something in NTB behaves incorrectly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: Model file
+      description: >
+        The smallest `.ntb` that reproduces it. `.ntb` is plain JSON, so pasting
+        it here is fine.
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: Output of `ntb version`
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: macOS 15 arm64, Python 3.13
+    validations:
+      required: true
