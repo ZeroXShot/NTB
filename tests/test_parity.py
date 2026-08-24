@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from ntb.emit.keras import emit as emit_keras
 from ntb.emit.onnx import export, resolve_param_shape
 from ntb.emit.torch import emit
 from ntb.ir import (
@@ -33,6 +34,9 @@ from ntb.ops import REGISTRY, OpSpec
 np = pytest.importorskip("numpy")
 
 VERIFIABLE = [spec for spec in REGISTRY if spec.parity is not None]
+#: Ops whose Keras mapping cannot be given the same weights as torch, so a
+#: comparison would be measuring two different models rather than two backends.
+KERAS_UNTRANSFERABLE: tuple[str, ...] = ()
 UNVERIFIED = [spec.name for spec in REGISTRY if spec.parity is None]
 
 
@@ -211,3 +215,84 @@ def _transfer_weights(spec: OpSpec, model: Any, onnx_model: Any) -> None:
             numpy_helper.from_array(replacement, name=initialiser.name)
         )
     onnx.checker.check_model(onnx_model)
+
+
+def build_torch(spec: OpSpec, graph: CoreGraph) -> tuple[Any, Any]:
+    """The emitted torch module, in eval mode, and the numpy result."""
+
+    emitted = emit(graph)
+    namespace: dict[str, Any] = {}
+    exec(compile(emitted.source, f"{spec.name}.py", "exec"), namespace)
+    return namespace[emitted.class_name]().eval(), emitted
+
+
+def keras_weights(spec: OpSpec, model: Any) -> list[Any]:
+    """The torch module's tensors, in the order and layout Keras keeps them."""
+    assert spec.keras is not None
+    state = dict(model.named_parameters()) | dict(model.named_buffers())
+    by_suffix = {key.rsplit(".", 1)[-1]: value for key, value in state.items()}
+
+    values: list[Any] = []
+    for weight in spec.keras.weights:
+        tensor = by_suffix.get(weight.torch_name)
+        if tensor is None:
+            continue
+        array = tensor.detach().numpy().astype(np.float32)
+        if weight.transform == "transpose":
+            array = array.T
+        elif weight.transform == "conv_kernel":
+            # torch (out, in, *spatial) -> keras (*spatial, in, out)
+            array = np.transpose(array, (*range(2, array.ndim), 1, 0))
+        values.append(array)
+    return values
+
+
+@pytest.mark.torch
+@pytest.mark.keras
+class TestKerasParity:
+    """torch against Keras 3, on the same weights and the same input.
+
+    Keras 3 runs on TensorFlow, JAX or torch, so agreeing with torch here is
+    what makes one `.ntb` mean the same model on all of them.
+    """
+
+    @pytest.mark.parametrize("spec", VERIFIABLE, ids=lambda s: s.name)
+    def test_torch_and_keras_agree(self, spec: OpSpec) -> None:
+        torch = pytest.importorskip("torch")
+        pytest.importorskip("keras")
+        if spec.name in KERAS_UNTRANSFERABLE:
+            pytest.skip("no weight transfer for this op yet")
+
+        graph = build_graph(spec)
+        inputs = sample_inputs(spec)
+
+        model, _ = build_torch(spec, graph)
+        with torch.no_grad():
+            torch_out = model(*(torch.from_numpy(v) for v in inputs.values()))
+        if isinstance(torch_out, tuple):
+            torch_out = torch_out[0]
+        torch_out = torch_out.numpy()
+
+        emitted = emit_keras(graph)
+        namespace: dict[str, Any] = {}
+        exec(compile(emitted.source, f"{spec.name}_keras.py", "exec"), namespace)
+        built = namespace[emitted.class_name]()
+
+        # Give Keras the torch weights, laid out the way Keras keeps them.
+        transferred = keras_weights(spec, model)
+        if transferred:
+            layer = next(layer for layer in built.layers if layer.weights and layer.count_params())
+            layer.set_weights(transferred)
+
+        import keras
+
+        values = list(inputs.values())
+        produced = built(values[0] if len(values) == 1 else values)
+        if isinstance(produced, (list, tuple)):
+            produced = produced[0]
+        keras_out = keras.ops.convert_to_numpy(produced)
+
+        assert torch_out.shape == keras_out.shape, spec.name
+        np.testing.assert_allclose(
+            torch_out, keras_out, atol=spec.parity_atol, rtol=1e-4, err_msg=spec.name
+        )
