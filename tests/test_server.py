@@ -137,8 +137,12 @@ class TestHttp:
         response = client.get("/api/state", headers={"origin": "https://evil.example"})
         assert response.status_code == 403
 
-    def test_the_placeholder_page_explains_the_missing_build(self, client: TestClient) -> None:
-        assert "not built" in client.get("/").text
+    def test_the_placeholder_page_explains_the_missing_build(
+        self, session: Session, tmp_path: Path
+    ) -> None:
+        # A source checkout has no bundle; the server has to say so rather than 404.
+        with TestClient(create_app(session, static_dir=tmp_path)) as bare:
+            assert "not built" in bare.get("/").text
 
     def test_a_built_frontend_is_served(self, session: Session, tmp_path: Path) -> None:
         (tmp_path / "index.html").write_text("<h1>studio</h1>", encoding="utf-8")
