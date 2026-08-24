@@ -63,9 +63,21 @@ export interface Module {
   edges?: Edge[];
   generators?: Generator[];
   id: string;
+  /**
+   * Boundary port -> where it lands inside. Unbound ports bind by position.
+   */
+  input_bindings?: {
+    [k: string]: Endpoint;
+  };
   inputs?: Port[];
   name?: string;
   nodes?: Node[];
+  /**
+   * Boundary port -> where it comes from inside.
+   */
+  output_bindings?: {
+    [k: string]: Endpoint;
+  };
   outputs?: Port[];
   /**
    * Module-level parameters referenceable from node attributes.
@@ -85,6 +97,12 @@ export interface Edge {
 }
 /**
  * One end of an edge: a port on a node.
+ *
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "^[A-Za-z_][A-Za-z0-9_./\-]*$".
+ *
+ * This interface was referenced by `undefined`'s JSON-Schema definition
+ * via the `patternProperty` "^[A-Za-z_][A-Za-z0-9_./\-]*$".
  */
 export interface Endpoint {
   node: string;
