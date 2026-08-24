@@ -75,15 +75,29 @@ def _pool(kind: str, spatial: int, *, torch_cls: str, keras_cls: str, onnx_op: s
                 target=keras_cls,
                 attr_map={"kernel_size": "pool_size", "stride": "strides"},
                 constants={"data_format": "channels_first", "padding": "valid"},
+                pad_target=f"keras.layers.ZeroPadding{spatial}D",
+                guard="sum(padding) == 0" if kind == "max" else "",
+                guard_message=(
+                    "Keras pads with zeros and a max pool needs -inf, so a padded "
+                    "max pool would be a different model; pad with an explicit op"
+                ),
                 imports=("keras",),
             ),
             onnx=OnnxMapping(
                 op_type=onnx_op,
                 attr_map={"kernel_size": "kernel_shape", "stride": "strides"},
+                pad_attr="pads",
+                # torch averages over the padded window; ONNX drops the padding
+                # from the divisor unless asked, which is a different number.
+                constants={"count_include_pad": 1} if kind == "avg" else {},
             ),
             parity=ParityCase(
                 inputs={"in": (2, 3, *([8] * spatial))},
-                attrs={"kernel_size": [2] * spatial},
+                # Padded where every backend can express it. Keras cannot pad a
+                # max pool the way torch does, so that case stays unpadded and
+                # is covered by a refusal test instead.
+                attrs={"kernel_size": [2] * spatial}
+                | ({"padding": [1] * spatial} if kind == "avg" else {}),
             ),
         )
     )
