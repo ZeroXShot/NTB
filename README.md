@@ -3,9 +3,9 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: pre-alpha.** The IR, a 30-op registry, symbolic shape inference and
-> validation work today. The graphical studio lands in phase 3 — see
-> [the roadmap](docs/roadmap.md).
+> **Status: pre-alpha.** The IR, a 30-op registry, symbolic shape inference,
+> validation and the torch and ONNX backends work today. The graphical studio
+> lands in phase 3 — see [the roadmap](docs/roadmap.md).
 
 ## Why another model builder
 
@@ -38,7 +38,9 @@ versions and hardware.
 ntb ops                                  # the canonical op registry
 ntb validate examples/transformer_block.ntb
 ntb shapes examples/cnn3d.ntb            # the inferred type on every port
-ntb info examples/vertical_tower.ntb     # a 12-high stack built by a Generator
+ntb info examples/vertical_tower.ntb      # a 12-high stack built by a Generator
+ntb emit examples/mlp.ntb                # readable PyTorch source
+ntb emit examples/mlp.ntb --backend onnx --out mlp.onnx
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
