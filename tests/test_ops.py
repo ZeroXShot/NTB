@@ -221,10 +221,212 @@ class TestShapeRules:
             )
 
     def test_conv2d_rejects_the_wrong_rank(self) -> None:
-        with pytest.raises(ShapeRuleError, match="rank-4"):
+        with pytest.raises(ShapeRuleError, match="must be rank 4"):
             infer(
                 "ntb.conv2d",
                 {"in": TensorType(shape=(3, 8, 8))},
                 in_channels=3,
                 out_channels=3,
+            )
+
+
+class TestDenseAndAttention:
+    def test_embedding_appends_the_embedding_dimension(self) -> None:
+        out = infer(
+            "ntb.embedding",
+            {"in": TensorType(dtype=DType.INT64, shape=("batch", "seq"))},
+            num_embeddings=50000,
+            embedding_dim=768,
+        )["out"]
+        assert out.shape == ("batch", "seq", 768)
+        assert out.dtype is DType.FLOAT32
+
+    def test_embedding_rejects_float_indices(self) -> None:
+        with pytest.raises(ShapeRuleError, match="integer dtype"):
+            infer(
+                "ntb.embedding",
+                {"in": TensorType(shape=("batch", "seq"))},
+                num_embeddings=10,
+                embedding_dim=4,
+            )
+
+    def test_matmul_broadcasts_batch_dimensions(self) -> None:
+        out = infer(
+            "ntb.matmul",
+            {
+                "a": TensorType(shape=("batch", 1, 4, 8)),
+                "b": TensorType(shape=(3, 8, 16)),
+            },
+        )["out"]
+        assert out.shape == ("batch", 3, 4, 16)
+
+    def test_matmul_catches_an_inner_mismatch(self) -> None:
+        with pytest.raises(ShapeRuleError, match="inner dimensions disagree"):
+            infer(
+                "ntb.matmul",
+                {"a": TensorType(shape=(4, 8)), "b": TensorType(shape=(16, 2))},
+            )
+
+    def test_attention_returns_output_and_weights(self) -> None:
+        out = infer(
+            "ntb.attention",
+            {"query": TensorType(shape=("batch", "seq", 512))},
+            embed_dim=512,
+            num_heads=8,
+        )
+        assert out["out"].shape == ("batch", "seq", 512)
+        assert out["weights"].shape == ("batch", 8, "seq", "seq")
+
+    def test_attention_requires_heads_to_divide_the_embedding(self) -> None:
+        with pytest.raises(ShapeRuleError, match="divisible by num_heads"):
+            infer(
+                "ntb.attention",
+                {"query": TensorType(shape=(1, 4, 100))},
+                embed_dim=100,
+                num_heads=8,
+            )
+
+    def test_attention_cross_attends_to_a_different_key_length(self) -> None:
+        out = infer(
+            "ntb.attention",
+            {
+                "query": TensorType(shape=(2, "q", 64)),
+                "key": TensorType(shape=(2, "k", 64)),
+            },
+            embed_dim=64,
+            num_heads=4,
+        )
+        assert out["weights"].shape == (2, 4, "q", "k")
+
+
+class TestConvFamily:
+    def test_conv3d_reduces_every_spatial_axis(self) -> None:
+        out = infer(
+            "ntb.conv3d",
+            {"in": TensorType(shape=(1, 3, 16, 32, 32))},
+            in_channels=3,
+            out_channels=8,
+            kernel_size=[3, 3, 3],
+            stride=[1, 2, 2],
+        )["out"]
+        assert out.shape == (1, 8, 14, 15, 15)
+        assert out.layout == "NCDHW"
+
+    def test_conv1d_needs_rank_3(self) -> None:
+        with pytest.raises(ShapeRuleError, match="must be rank 3"):
+            infer(
+                "ntb.conv1d",
+                {"in": TensorType(shape=(1, 3, 8, 8))},
+                in_channels=3,
+                out_channels=8,
+            )
+
+
+class TestNormalisation:
+    def test_layernorm_preserves_the_input(self) -> None:
+        t = TensorType(shape=("batch", "seq", 768))
+        assert infer("ntb.layernorm", {"in": t}, normalized_shape=[768])["out"] == t
+
+    def test_layernorm_catches_a_trailing_axis_mismatch(self) -> None:
+        with pytest.raises(ShapeRuleError, match="normalized_shape says 512"):
+            infer(
+                "ntb.layernorm",
+                {"in": TensorType(shape=("batch", 768))},
+                normalized_shape=[512],
+            )
+
+    def test_batchnorm_checks_the_channel_axis(self) -> None:
+        with pytest.raises(ShapeRuleError, match="num_features is 32"):
+            infer(
+                "ntb.batchnorm",
+                {"in": TensorType(shape=(1, 64, 8, 8))},
+                num_features=32,
+            )
+
+
+class TestPooling:
+    def test_stride_defaults_to_the_kernel(self) -> None:
+        out = infer("ntb.maxpool2d", {"in": TensorType(shape=(1, 3, 32, 32))}, kernel_size=[2, 2])[
+            "out"
+        ]
+        assert out.shape == (1, 3, 16, 16)
+
+    def test_global_avgpool_drops_every_spatial_axis(self) -> None:
+        out = infer("ntb.global_avgpool", {"in": TensorType(shape=("batch", 512, 7, 7))})["out"]
+        assert out.shape == ("batch", 512)
+
+    def test_global_avgpool_can_keep_them(self) -> None:
+        out = infer("ntb.global_avgpool", {"in": TensorType(shape=(1, 512, 7, 7))}, keepdims=True)[
+            "out"
+        ]
+        assert out.shape == (1, 512, 1, 1)
+
+
+class TestShapeOps:
+    def test_flatten_merges_the_trailing_axes(self) -> None:
+        out = infer("ntb.flatten", {"in": TensorType(shape=("batch", 64, 7, 7))})["out"]
+        assert out.shape == ("batch", 3136)
+
+    def test_reshape_infers_a_single_wildcard(self) -> None:
+        out = infer("ntb.reshape", {"in": TensorType(shape=(2, 3, 4))}, shape=[-1, 12])["out"]
+        assert out.shape == (2, 12)
+
+    def test_reshape_rejects_an_impossible_target(self) -> None:
+        with pytest.raises(ShapeRuleError, match="cannot reshape"):
+            infer("ntb.reshape", {"in": TensorType(shape=(2, 3))}, shape=[5, 5])
+
+    def test_permute_reorders_axes(self) -> None:
+        out = infer("ntb.permute", {"in": TensorType(shape=("batch", "seq", 64))}, order=[0, 2, 1])[
+            "out"
+        ]
+        assert out.shape == ("batch", 64, "seq")
+
+    def test_permute_rejects_a_repeated_axis(self) -> None:
+        with pytest.raises(ShapeRuleError, match="repeats an axis"):
+            infer("ntb.permute", {"in": TensorType(shape=(1, 2, 3))}, order=[0, 0, 1])
+
+    def test_concat_sums_the_axis_it_joins(self) -> None:
+        out = infer(
+            "ntb.concat",
+            {
+                "a": TensorType(shape=("batch", 32, 8, 8)),
+                "b": TensorType(shape=("batch", 16, 8, 8)),
+            },
+        )["out"]
+        assert out.shape == ("batch", 48, 8, 8)
+
+    def test_concat_requires_the_other_axes_to_match(self) -> None:
+        with pytest.raises(ShapeRuleError, match="outside the concat axis"):
+            infer(
+                "ntb.concat",
+                {
+                    "a": TensorType(shape=(1, 32, 8, 8)),
+                    "b": TensorType(shape=(1, 16, 4, 8)),
+                },
+            )
+
+
+class TestElementwise:
+    def test_add_broadcasts(self) -> None:
+        out = infer(
+            "ntb.add",
+            {"a": TensorType(shape=("batch", 1, 64)), "b": TensorType(shape=(8, 64))},
+        )["out"]
+        assert out.shape == ("batch", 8, 64)
+
+    def test_add_rejects_a_provable_mismatch(self) -> None:
+        with pytest.raises(ShapeRuleError, match="cannot broadcast"):
+            infer(
+                "ntb.add",
+                {"a": TensorType(shape=(4, 3)), "b": TensorType(shape=(5, 3))},
+            )
+
+    def test_add_rejects_mixed_dtypes(self) -> None:
+        with pytest.raises(ShapeRuleError, match="share a dtype"):
+            infer(
+                "ntb.add",
+                {
+                    "a": TensorType(dtype=DType.FLOAT32, shape=(4,)),
+                    "b": TensorType(dtype=DType.FLOAT16, shape=(4,)),
+                },
             )
