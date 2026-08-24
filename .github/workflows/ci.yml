@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  # Lint and types run once. They are platform-independent, so paying for nine
+  # copies of them buys nothing.
+  static:
+    name: lint + types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e ".[server]" ruff mypy pytest
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+
+  test:
+    name: py${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-14 is arm64; ubuntu and windows are x86_64. Between them the
+        # matrix covers every architecture NTB claims to support, which is only
+        # affordable because the wheel is pure Python.
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python -m pip install -e ".[server]" pytest
+      - run: pytest -q
+
+  # The frontend generates its types from schema/ntb-ir-v*.json, which is itself
+  # generated from the pydantic models. If the checked-in copy drifts, the
+  # studio starts lying about the IR -- so drift fails the build.
+  schema:
+    name: schema is in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -e .
+      - run: ntb schema --check
+
+  # A wheel that imports on the dev machine but not from a clean install is the
+  # classic packaging failure. Install the built artifact, not the source tree.
+  wheel:
+    name: wheel installs and runs on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install build
+      - run: python -m build --wheel
+      - name: Wheel must be pure Python
+        shell: bash
+        run: |
+          ls dist/
+          test -n "$(ls dist/*-py3-none-any.whl 2>/dev/null)" \
+            || { echo "::error::wheel is not py3-none-any; a native dependency crept in"; exit 1; }
+      - name: Install from the wheel in a clean environment
+        shell: bash
+        run: |
+          VENV="${RUNNER_TEMP:-/tmp}/ntb-venv"
+          python -m venv "$VENV"
+          if [ -d "$VENV/Scripts" ]; then BIN="$VENV/Scripts"; else BIN="$VENV/bin"; fi
+          "$BIN/python" -m pip install --quiet dist/*.whl
+          "$BIN/ntb" version
+          "$BIN/ntb" ops
+          "$BIN/ntb" validate examples/mlp.ntb
+          "$BIN/ntb" info examples/vertical_tower.ntb
