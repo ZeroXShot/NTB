@@ -1,0 +1,244 @@
+{
+  "doc": "Demonstrates the two things that make NTB different: a Generator that repeats a module through space, and a SpatialRule that derives edges from where blocks sit. Both lower to a plain DAG before any backend sees them.",
+  "metadata": {},
+  "modules": [
+    {
+      "doc": "",
+      "edges": [
+        {
+          "dst": {
+            "node": "act",
+            "port": "in"
+          },
+          "id": "e",
+          "src": {
+            "node": "fc",
+            "port": "out"
+          }
+        }
+      ],
+      "generators": [],
+      "id": "block",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "in",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "name": "Dense block",
+      "nodes": [
+        {
+          "attrs": {
+            "in_features": 256,
+            "out_features": 256
+          },
+          "id": "fc",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_z",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "act",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_z",
+            "pos": [
+              0.0,
+              0.0,
+              0.4
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "out",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": []
+    },
+    {
+      "doc": "",
+      "edges": [],
+      "generators": [],
+      "id": "lateral",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "in",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "name": "Laterally coupled probes",
+      "nodes": [
+        {
+          "attrs": {},
+          "id": "p0",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "p1",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              1.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "p2",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              5.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "out",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": [
+        {
+          "axis": "z",
+          "bidirectional": true,
+          "id": "couple",
+          "input_port": "in",
+          "kind": "neighborhood",
+          "label": "Couple probes that sit within 1.5 units of each other.",
+          "members": [
+            "p0",
+            "p1",
+            "p2"
+          ],
+          "output_port": "out",
+          "radius": 1.5
+        }
+      ]
+    },
+    {
+      "doc": "A 12-high stack along Z. The stack is one Generator, not twelve copied nodes, so widening it is a one-character diff.",
+      "edges": [],
+      "generators": [
+        {
+          "attr_bindings": {},
+          "axis": "z",
+          "chain": true,
+          "count": 12,
+          "id": "stack",
+          "label": "12 dense blocks stacked vertically",
+          "module": "block",
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "step": 1.0
+        }
+      ],
+      "id": "tower",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "x",
+          "optional": false,
+          "type": {
+            "dtype": "float32",
+            "layout": null,
+            "shape": [
+              "batch",
+              256
+            ]
+          }
+        }
+      ],
+      "name": "Vertical tower",
+      "nodes": [],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "y",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": []
+    }
+  ],
+  "name": "vertical-tower",
+  "ntb_version": "",
+  "root": "tower",
+  "schema_version": 1
+}
