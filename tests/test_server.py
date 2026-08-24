@@ -93,6 +93,40 @@ class TestSession:
         assert blank_document("draft").root_module.id == "model"
 
 
+class TestSpatialState:
+    """The studio cannot draw a generator or a rule without this."""
+
+    def test_a_generated_block_reaches_the_client(self) -> None:
+        session = Session(io.load(EXAMPLES / "lattice_3d.ntb"))
+        derived = session.derived().as_json()
+        assert len(derived["blocks"]) == 16
+        assert derived["blocks"][0]["kind"] == "generated"
+        assert {link["kind"] for link in derived["links"]} == {"rule"}
+
+    def test_editing_a_generator_rebuilds_the_topology(self) -> None:
+        from ntb.commands import UpdateGenerator
+
+        session = Session(io.load(EXAMPLES / "lattice_3d.ntb"))
+        before = len(session.derived().layout.links)
+        generator = session.document.root_module.generators[0]
+        taller = generator.model_copy(update={"count": 6})
+        session.apply(UpdateGenerator(module="lattice", generator=taller))
+        assert len(session.derived().layout.links) > before
+
+    def test_a_broken_cell_says_which_repetition(self) -> None:
+        from ntb.commands import UpdateGenerator
+
+        session = Session(io.load(EXAMPLES / "lattice_3d.ntb"))
+        stray = session.document.root_module.generators[3].model_copy(
+            update={"origin": (12.0, 12.0, 0.0)}
+        )
+        session.apply(UpdateGenerator(module="lattice", generator=stray))
+        diagnostics = session.derived().diagnostics
+        assert diagnostics
+        assert diagnostics[0]["block"] == "col3-0"
+        assert "col3-0/mix" in diagnostics[0]["text"]
+
+
 class TestCatalog:
     def test_every_registered_op_is_offered(self) -> None:
         from ntb.ops import REGISTRY
