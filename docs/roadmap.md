@@ -3,12 +3,17 @@
 Each phase has an exit criterion that can be checked, not argued about. Phases
 do not overlap: an unfinished foundation makes every later phase more expensive.
 
+**Nothing is published to PyPI until every phase is done.** The release workflow
+and the packaging are ready and tested; the tag is deliberately withheld, so that
+the first `.ntb` files in circulation come from a format that has already met
+every feature that was going to bend it. Until then, install from a checkout.
+
 | Phase | What ships | Exit criterion | Status |
 |---|---|---|---|
 | 0 | Repo, licence, CI matrix, ADRs | CI green on 9 os/python combinations | **done** |
 | 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | **done** |
 | 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | **done** |
-| 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | **done** |
+| 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it | **done** |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | **done** |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
