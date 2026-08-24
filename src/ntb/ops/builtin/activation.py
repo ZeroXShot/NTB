@@ -12,6 +12,7 @@ from ntb.ops.spec import (
     CallKind,
     OnnxMapping,
     OpSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
 )
@@ -42,6 +43,7 @@ def _simple(
             ),
             keras=BackendMapping(target=keras_target, kind=CallKind.FUNCTION, imports=("keras",)),
             onnx=OnnxMapping(op_type=onnx_op, since_opset=since_opset),
+            parity=ParityCase(inputs={"in": (2, 6)}),
         )
     )
 
@@ -122,6 +124,7 @@ GELU = register(
             notes="Takes approximate as a bool; the emitter maps 'tanh' to True.",
         ),
         onnx=OnnxMapping(op_type="Gelu", since_opset=20, attr_map={"approximate": "approximate"}),
+        parity=ParityCase(inputs={"in": (2, 6)}),
     )
 )
 
@@ -158,6 +161,7 @@ SOFTMAX = register(
             imports=("keras",),
         ),
         onnx=OnnxMapping(op_type="Softmax", attr_map={"axis": "axis"}),
+        parity=ParityCase(inputs={"in": (2, 6)}),
     )
 )
 
