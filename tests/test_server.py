@@ -24,8 +24,8 @@ def session() -> Session:
 
 
 @pytest.fixture
-def client(session: Session) -> TestClient:
-    return TestClient(create_app(session))
+def client(session: Session, tmp_path: Path) -> TestClient:
+    return TestClient(create_app(session, runs_root=tmp_path / "runs"))
 
 
 def add_relu(node_id: str = "extra") -> dict[str, Any]:
@@ -182,6 +182,66 @@ class TestHttp:
         (tmp_path / "index.html").write_text("<h1>studio</h1>", encoding="utf-8")
         with TestClient(create_app(session, static_dir=tmp_path)) as built:
             assert "studio" in built.get("/").text
+
+
+class TestRuns:
+    """Training is a subprocess (ADR 11); the server only starts and reports it."""
+
+    def test_an_unsaved_document_cannot_be_trained(self, client: TestClient) -> None:
+        # The worker reads the file, so training an unsaved buffer would train
+        # something else.
+        response = client.post("/api/runs", json={"epochs": 1})
+        assert response.status_code == 400
+        assert "save the document" in response.json()["detail"]
+
+    def test_the_run_list_starts_empty(self, client: TestClient) -> None:
+        assert client.get("/api/runs").json() == []
+
+    def test_an_unknown_run_is_a_404(self, client: TestClient) -> None:
+        assert client.get("/api/runs/nope").status_code == 404
+
+    def test_stopping_something_that_is_not_running_is_a_conflict(self, client: TestClient) -> None:
+        assert client.post("/api/runs/nope/stop").status_code == 409
+
+    def test_a_bad_configuration_is_refused(self, session: Session, tmp_path: Path) -> None:
+        session.save(tmp_path / "model.ntb")
+        with TestClient(create_app(session, runs_root=tmp_path / "runs")) as client:
+            response = client.post("/api/runs", json={"epochs": 0})
+            assert response.status_code == 400
+
+    @pytest.mark.torch
+    def test_a_run_reaches_the_socket_and_the_record(
+        self, session: Session, tmp_path: Path
+    ) -> None:
+        pytest.importorskip("torch")
+        session.save(tmp_path / "model.ntb")
+        app = create_app(session, runs_root=tmp_path / "runs")
+
+        with TestClient(app) as client, client.websocket_connect("/ws") as socket:
+            socket.receive_json()
+            started = client.post(
+                "/api/runs",
+                json={
+                    "epochs": 1,
+                    "steps_per_epoch": 2,
+                    "batch_size": 4,
+                    "loss": "cross_entropy",
+                },
+            ).json()
+            assert started["status"] == "running"
+
+            events: list[str] = []
+            while len(events) < 4:
+                message = socket.receive_json()
+                if message.get("type") == "run":
+                    events.append(message["event"])
+                if events and events[-1] in {"finished", "failed"}:
+                    break
+
+            assert events[0] == "started"
+            assert "metric" in events
+            detail = client.get(f"/api/runs/{started['id']}").json()
+            assert [row["step"] for row in detail["metrics"]] == [1, 2]
 
 
 class TestOrigins:
