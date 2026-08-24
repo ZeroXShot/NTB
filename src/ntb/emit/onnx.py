@@ -156,7 +156,7 @@ class _Exporter:
             self.uses_custom_domain = True
 
         attrs = spec.resolved_attrs(node.attrs)
-        slots: dict[str, str] = {
+        slots: dict[str, str | list[str]] = {
             port.name: self._input_name(node, spec, port.name) for port in spec.inputs
         }
         for param in mapping.params:
@@ -165,7 +165,14 @@ class _Exporter:
         order = mapping.input_order or (
             tuple(p.name for p in spec.inputs) + tuple(p.name for p in mapping.params)
         )
-        inputs = [slots[token] for token in order]
+        inputs: list[str] = []
+        for token in order:
+            value = slots[token]
+            # A variadic port occupies as many ONNX inputs as it has edges.
+            if isinstance(value, list):
+                inputs.extend(value)
+            else:
+                inputs.append(value)
         while inputs and not inputs[-1]:
             inputs.pop()  # ONNX reads a trailing "" as absent; drop it entirely.
         outputs = [self._declare(node.id, port.name) for port in spec.outputs]
@@ -181,14 +188,22 @@ class _Exporter:
             )
         )
 
-    def _input_name(self, node: CoreNode, spec: OpSpec, port: str) -> str:
-        for edge in self.graph.incoming(node.id):
-            if edge.dst.port == port:
-                return self._names[(edge.src.node, edge.src.port)]
+    def _input_name(self, node: CoreNode, spec: OpSpec, port: str) -> str | list[str]:
+        declared = next(p for p in spec.inputs if p.name == port)
+        arriving = [
+            self._names[(edge.src.node, edge.src.port)]
+            for edge in self.graph.incoming(node.id)
+            if edge.dst.port == port
+        ]
+        if declared.variadic:
+            if not arriving:
+                raise OnnxEmitError(f"node {node.id!r} has nothing connected to {port!r}")
+            return arriving
+        if arriving:
+            return arriving[0]
         pinned = self._names.get((node.id, port))
         if pinned is not None:
             return pinned
-        declared = next(p for p in spec.inputs if p.name == port)
         if declared.optional:
             return ""
         raise OnnxEmitError(f"node {node.id!r} has nothing connected to {port!r}")
