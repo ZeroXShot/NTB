@@ -16,6 +16,7 @@ from ntb.ops.spec import (
     ParityCase,
     PortSpec,
     ShapeContext,
+    WeightSpec,
 )
 from ntb.shapes.symbolic import ShapeError, broadcast, dims_equal
 
@@ -56,6 +57,7 @@ LINEAR = register(
         keras=BackendMapping(
             target="keras.layers.Dense",
             attr_map={"out_features": "units", "bias": "use_bias"},
+            weights=(WeightSpec("weight", "transpose"), WeightSpec("bias")),
             imports=("keras",),
             notes="Keras infers in_features on first call.",
         ),
@@ -104,6 +106,7 @@ EMBEDDING = register(
         keras=BackendMapping(
             target="keras.layers.Embedding",
             attr_map={"num_embeddings": "input_dim", "embedding_dim": "output_dim"},
+            weights=(WeightSpec("weight"),),
             imports=("keras",),
             notes="No padding_idx; mask_zero only covers index 0.",
         ),
