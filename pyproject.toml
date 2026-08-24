@@ -64,7 +64,7 @@ target-version = "py311"
 src = ["src", "tests"]
 # Golden files are fixtures recording what the emitters produce. Reformatting
 # them here would rewrite the thing under test.
-extend-exclude = ["tests/golden/torch"]
+extend-exclude = ["tests/golden"]
 
 [tool.ruff.lint]
 select = [
@@ -88,10 +88,14 @@ ignore = ["N818"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
-exclude = ["tests/golden/torch"]
+exclude = ["tests/golden/torch", "tests/golden/keras"]
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 enable_error_code = ["redundant-expr", "possibly-undefined", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+module = ["keras.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["sympy.*"]
