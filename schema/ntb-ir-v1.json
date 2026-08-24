@@ -197,6 +197,20 @@
           "title": "Id",
           "type": "string"
         },
+        "input_bindings": {
+          "description": "Boundary port -> where it lands inside. Unbound ports bind by position.",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_./\\-]*$": {
+              "$ref": "#/$defs/Endpoint"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Input Bindings",
+          "type": "object"
+        },
         "inputs": {
           "default": [],
           "items": {
@@ -217,6 +231,20 @@
           },
           "title": "Nodes",
           "type": "array"
+        },
+        "output_bindings": {
+          "description": "Boundary port -> where it comes from inside.",
+          "patternProperties": {
+            "^[A-Za-z_][A-Za-z0-9_./\\-]*$": {
+              "$ref": "#/$defs/Endpoint"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 256,
+            "minLength": 1
+          },
+          "title": "Output Bindings",
+          "type": "object"
         },
         "outputs": {
           "default": [],
