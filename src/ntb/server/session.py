@@ -18,6 +18,7 @@ from ntb.emit import EmitError, emit_torch_document
 from ntb.ir import Document, Module, io
 from ntb.shapes import infer_shapes
 from ntb.spatial import NotResolvable, ResolveError, resolve
+from ntb.spatial.preview import Block, Link, Preview, preview
 from ntb.validate import Diagnostic, validate
 
 EMPTY_MODULE = "model"
@@ -36,6 +37,8 @@ class Derived:
     types: dict[str, str] = field(default_factory=dict)
     code: str = ""
     code_error: str = ""
+    #: What the root module looks like in space, generated blocks included.
+    layout: Preview = field(default_factory=Preview)
 
     def as_json(self) -> dict[str, Any]:
         return {
@@ -43,6 +46,9 @@ class Derived:
             "types": self.types,
             "code": self.code,
             "codeError": self.code_error,
+            "blocks": [_block(b) for b in self.layout.blocks],
+            "links": [_link(link) for link in self.layout.links],
+            "layoutProblems": list(self.layout.problems),
         }
 
 
@@ -149,7 +155,30 @@ def _derive(document: Document) -> Derived:
             code_error = str(exc)
     else:
         code_error = "fix the errors above to see the generated code"
-    return Derived(diagnostics=diagnostics, types=types, code=code, code_error=code_error)
+    return Derived(
+        diagnostics=diagnostics,
+        types=types,
+        code=code,
+        code_error=code_error,
+        layout=preview(document),
+    )
+
+
+def _block(block: Block) -> dict[str, Any]:
+    return {
+        "key": block.key,
+        "label": block.label,
+        "op": block.op,
+        "kind": block.kind.value,
+        "pos": list(block.pos),
+        "extent": list(block.extent),
+        "source": block.source,
+        "index": block.index,
+    }
+
+
+def _link(link: Link) -> dict[str, Any]:
+    return {"src": link.src, "dst": link.dst, "kind": link.kind.value, "source": link.source}
 
 
 def _diagnostic(diagnostic: Diagnostic) -> dict[str, Any]:
@@ -162,5 +191,7 @@ def _diagnostic(diagnostic: Diagnostic) -> dict[str, Any]:
         "node": location.node,
         "port": location.port,
         "edge": location.edge,
+        "block": location.block,
+        "path": location.path,
         "text": str(diagnostic),
     }
