@@ -16,9 +16,32 @@ every feature that was going to bend it. Until then, install from a checkout.
 | 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it | **done** |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | **done** |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | **done** |
-| 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
+| 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | **done** |
 | 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 6 in detail
+
+See [docs/training.md](training.md).
+
+- [x] A run is a subprocess that speaks one JSON object per line
+      ([ADR 11](adr/0011-training-runs-in-their-own-process.md)); the studio
+      survives the model that does not, and *stop* actually stops
+- [x] `RunManager`: launches, reads the stream on a thread, records, forwards
+- [x] SQLite store, so a run outlives the session that started it, and one left
+      running by a session that ended is marked stopped rather than lied about
+- [x] Checkpoints, and resume — which starts a *new* run continuing the step
+      count, leaving the original record alone
+- [x] Synthetic data shaped from the model's own inputs, for the question you
+      have while drawing it, plus a `dataloaders(batch_size)` script for real data
+- [x] `ntb run` and `ntb runs`, and a Train tab in the studio with a live loss
+      curve fed by the WebSocket
+- [x] The studio saves before starting a run: the worker reads the file, and
+      training something other than what is on screen would be worse
+
+Deliberately absent: validation loops, schedulers, early stopping, distributed
+training, and any metric but the loss. When "does this train" is answered,
+`ntb emit` hands over source for a real training setup.
 
 ## Phase 5 in detail
 
