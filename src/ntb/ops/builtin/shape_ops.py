@@ -99,6 +99,7 @@ FLATTEN = register(
         keras=BackendMapping(
             target="keras.ops.reshape",
             kind=CallKind.FUNCTION,
+            shape_arg="newshape",
             imports=("keras",),
             notes="Keras has no axis-range flatten; the emitter computes the shape.",
         ),
