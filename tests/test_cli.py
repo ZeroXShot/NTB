@@ -57,12 +57,6 @@ def test_checked_in_schema_matches_the_models() -> None:
     assert result.exit_code == 0, "run `ntb schema --write`"
 
 
-def test_unimplemented_commands_say_which_phase_they_land_in() -> None:
-    result = runner.invoke(app, ["run"])
-    assert result.exit_code == 2
-    assert "phase 6" in result.output
-
-
 def test_studio_refuses_a_file_that_is_not_there() -> None:
     # Nothing here starts a server: the path check happens first.
     result = runner.invoke(app, ["studio", "no/such/model.ntb"])
@@ -181,4 +175,49 @@ def test_import_refuses_a_file_that_is_not_there(tmp_path: Path) -> None:
     result = runner.invoke(
         app, ["import", str(tmp_path / "ghost.onnx"), "--out", str(tmp_path / "x.ntb")]
     )
+    assert result.exit_code == 1
+
+
+def test_run_trains_and_reports(tmp_path: Path) -> None:
+    pytest.importorskip("torch")
+    import shutil
+
+    document = tmp_path / "mlp.ntb"
+    shutil.copy(EXAMPLES / "mlp.ntb", document)
+    result = runner.invoke(
+        app,
+        [
+            "run",
+            str(document),
+            "--epochs",
+            "1",
+            "--steps",
+            "2",
+            "--batch-size",
+            "4",
+            "--loss",
+            "cross_entropy",
+            "--root",
+            str(tmp_path / "runs"),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "done after 2 steps" in result.output
+    assert "loss" in result.output
+
+    listed = runner.invoke(app, ["runs", "--root", str(tmp_path / "runs")])
+    assert listed.exit_code == 0
+    assert "done" in listed.output
+
+
+def test_run_refuses_an_option_that_is_not_a_choice(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app, ["run", str(EXAMPLES / "mlp.ntb"), "--loss", "hinge", "--root", str(tmp_path)]
+    )
+    assert result.exit_code == 2
+    assert "hinge" in result.output
+
+
+def test_runs_reports_an_id_that_is_not_there(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["runs", "--show", "nope", "--root", str(tmp_path / "runs")])
     assert result.exit_code == 1
