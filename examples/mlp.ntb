@@ -30,6 +30,7 @@
       ],
       "generators": [],
       "id": "mlp",
+      "input_bindings": {},
       "inputs": [
         {
           "direction": "in",
@@ -114,6 +115,7 @@
           "ports": []
         }
       ],
+      "output_bindings": {},
       "outputs": [
         {
           "direction": "out",
