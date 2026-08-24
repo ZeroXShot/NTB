@@ -6,7 +6,7 @@ do not overlap: an unfinished foundation makes every later phase more expensive.
 | Phase | What ships | Exit criterion | Status |
 |---|---|---|---|
 | 0 | Repo, licence, CI matrix, ADRs | CI green on 9 os/python combinations | **done** |
-| 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | in progress |
+| 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | **done** |
 | 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | |
 | 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | |
@@ -28,13 +28,18 @@ slowly.
 - [x] JSON Schema generated from the models, drift-checked in CI
 - [x] Op registry, declarative `OpSpec`, first three ops
 - [x] Symbolic dimension algebra (sympy)
-- [ ] The remaining ~37 canonical ops: norms, activations, attention, embedding,
-      pooling, reshape, elementwise, conv1d/conv3d
-- [ ] Graph-level shape inference: walk the core graph, cache, invalidate
-      incrementally on edit
-- [ ] `ntb.validate`: located diagnostics with severities, replacing the
-      exceptions shape rules raise today
-- [ ] `ntb validate` reporting real semantic errors
+- [x] 30 canonical ops across dense, activation, convolution, normalisation,
+      pooling, shape, elementwise and attention
+- [x] `ntb.spatial.resolve`: modules and explicit edges lower to the core IR
+      (generators and spatial rules are recognised and deferred to phase 4)
+- [x] Graph-level shape inference with one message per mistake, not a cascade
+- [x] `ntb.validate`: located diagnostics with codes and severities
+- [x] `ntb validate` and `ntb shapes` on the command line
+
+Deferred to when there is a UI to need it:
+
+- [ ] Incremental invalidation of inference on edit (phase 3, with the command bus)
+- [ ] More ops as the emitters and real models ask for them
 
 ## What is deliberately *not* planned
 
