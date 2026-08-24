@@ -23,6 +23,7 @@ import {
 import { Inspector } from "./panels/Inspector";
 import { Output } from "./panels/Output";
 import { Palette } from "./panels/Palette";
+import { Runs } from "./panels/Runs";
 import { Spatial } from "./panels/Spatial";
 import { Canvas } from "./scene/Canvas";
 import type { SceneEdge, SceneNode, ViewMode } from "./scene/graph";
@@ -43,6 +44,11 @@ export function App(): JSX.Element {
     select,
     clearError,
     setLinkFrom,
+    runs,
+    curves,
+    refreshRuns,
+    startRun,
+    actOnRun,
   } = useStudio();
   const [mode, setMode] = useState<ViewMode>("2d");
 
@@ -250,6 +256,17 @@ export function App(): JSX.Element {
             onBind={(direction, port, endpoint) =>
               module && run(bindPort(module, direction, port, endpoint))
             }
+          />
+        }
+        runs={
+          <Runs
+            runs={runs}
+            curves={curves}
+            savedPath={snapshot?.path ?? null}
+            onStart={startRun}
+            onStop={(id) => actOnRun(id, "stop")}
+            onResume={(id) => actOnRun(id, "resume")}
+            onRefresh={refreshRuns}
           />
         }
       />
