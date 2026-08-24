@@ -84,10 +84,37 @@ jobs:
       - run: python -m pip install -e .
       - run: ntb schema --check
 
+  # The studio's IR types are generated from schema/ntb-ir-v1.json, which is
+  # generated from the pydantic models. Drift means the editor is working from a
+  # different idea of the IR than the server, so it fails the build.
+  studio:
+    name: studio builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/studio/package-lock.json
+      - run: npm ci
+        working-directory: apps/studio
+      - run: npm run types:check
+        working-directory: apps/studio
+      - run: npx tsc --noEmit
+        working-directory: apps/studio
+      - run: npm run build
+        working-directory: apps/studio
+      - uses: actions/upload-artifact@v4
+        with:
+          name: studio-bundle
+          path: src/ntb/_static
+
   # A wheel that imports on the dev machine but not from a clean install is the
   # classic packaging failure. Install the built artifact, not the source tree.
   wheel:
     name: wheel installs and runs on ${{ matrix.os }}
+    needs: studio
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -99,6 +126,12 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
+      # The frontend is built once and packaged here; the wheel must never be
+      # published without a UI inside it.
+      - uses: actions/download-artifact@v4
+        with:
+          name: studio-bundle
+          path: src/ntb/_static
       - run: python -m pip install build
       - run: python -m build --wheel
       - name: Wheel must be pure Python
@@ -107,14 +140,30 @@ jobs:
           ls dist/
           test -n "$(ls dist/*-py3-none-any.whl 2>/dev/null)" \
             || { echo "::error::wheel is not py3-none-any; a native dependency crept in"; exit 1; }
+      - name: Wheel must contain the studio bundle
+        shell: bash
+        run: |
+          python -m zipfile -l dist/*.whl | grep -q "ntb/_static/index.html" || { echo "::error::the wheel has no studio bundle"; exit 1; }
       - name: Install from the wheel in a clean environment
         shell: bash
         run: |
           VENV="${RUNNER_TEMP:-/tmp}/ntb-venv"
           python -m venv "$VENV"
           if [ -d "$VENV/Scripts" ]; then BIN="$VENV/Scripts"; else BIN="$VENV/bin"; fi
-          "$BIN/python" -m pip install --quiet dist/*.whl
+          "$BIN/python" -m pip install --quiet "$(ls dist/*.whl)[server]"
           "$BIN/ntb" version
           "$BIN/ntb" ops
           "$BIN/ntb" validate examples/mlp.ntb
           "$BIN/ntb" info examples/vertical_tower.ntb
+      - name: The studio must answer on a clean install
+        shell: bash
+        run: |
+          VENV="${RUNNER_TEMP:-/tmp}/ntb-venv"
+          if [ -d "$VENV/Scripts" ]; then BIN="$VENV/Scripts"; else BIN="$VENV/bin"; fi
+          "$BIN/ntb" studio --no-open --port 8757 &
+          for _ in $(seq 30); do
+            curl -sf http://127.0.0.1:8757/api/health && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8757/api/health
+          curl -sf http://127.0.0.1:8757/ | grep -q "<title>NTB Studio</title>"
