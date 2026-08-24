@@ -146,7 +146,9 @@ class RunStore:
 
     # -- metrics ------------------------------------------------------------
 
-    def record(self, run_id: str, step: int, epoch: int, name: str, value: float, seconds: float) -> None:
+    def record(
+        self, run_id: str, step: int, epoch: int, name: str, value: float, seconds: float
+    ) -> None:
         self._db.execute(
             "INSERT INTO metrics (run_id, step, epoch, name, value, seconds) VALUES (?,?,?,?,?,?)",
             (run_id, step, epoch, name, value, seconds),

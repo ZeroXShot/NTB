@@ -41,7 +41,8 @@ def main(argv: list[str]) -> int:
     config = RunConfig.model_validate_json(Path(argv[1]).read_text(encoding="utf-8"))
     try:
         _train(config)
-    except Exception as exc:  # noqa: BLE001 - the manager needs the reason, not a traceback
+    except Exception as exc:
+        # The manager needs the reason, not a traceback down a pipe.
         emit("failed", error=f"{type(exc).__name__}: {exc}")
         return 1
     return 0

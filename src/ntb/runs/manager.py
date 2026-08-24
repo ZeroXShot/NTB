@@ -69,7 +69,8 @@ class RunManager:
         payload.write_text(config.model_dump_json(indent=2), encoding="utf-8")
 
         run = self.store.create(run_id, str(config.document), json.loads(config.model_dump_json()))
-        process = subprocess.Popen(  # noqa: S603 - our own worker, our own argv
+        # Our own worker, our own argv: no shell, nothing from the document.
+        process = subprocess.Popen(
             [sys.executable, "-m", "ntb.runs.worker", str(payload)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -189,7 +190,8 @@ class RunManager:
             return
         try:
             self.listener(run_id, {"event": kind, **event})
-        except Exception:  # noqa: BLE001 - a broken listener must not kill a run
+        except Exception:
+            # A broken listener must not take the run down with it.
             pass
 
     def _require(self, run_id: str) -> Run:
