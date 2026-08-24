@@ -33,12 +33,12 @@ class TestShippedExamples:
         assert report.ok, [str(d) for d in report.diagnostics]
         assert not report.warnings, [str(d) for d in report.diagnostics]
 
-    def test_the_tower_example_warns_rather_than_failing(self) -> None:
-        # It uses phase-4 features. That is a limitation of this build, not a
-        # mistake by the author, so it must not read as an error.
+    def test_the_tower_example_validates(self) -> None:
+        # Its twelve blocks come from a Generator, so this only passes once
+        # generators expand.
         report = validate(io.load(EXAMPLES / "vertical_tower.ntb"))
-        assert report.ok
-        assert Code.UNRESOLVABLE in report.codes()
+        assert report.ok, [str(d) for d in report.diagnostics]
+        assert report.diagnostics == ()
 
 
 class TestOpAndAttributeChecks:
