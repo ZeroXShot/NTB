@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, Origin
+from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, GraphInput, GraphOutput, Origin
 from ntb.ir.graph import Endpoint
 from ntb.ir.types import DType, TensorType
 from ntb.shapes import infer_shapes
@@ -12,6 +12,10 @@ IMAGE = TensorType(dtype=DType.FLOAT32, shape=("batch", 3, 32, 32))
 
 def node(node_id: str, op: str, **attrs: object) -> CoreNode:
     return CoreNode(id=node_id, op=op, attrs=attrs, origin=Origin(module="m", node=node_id))
+
+
+def feed(node: str, port: str, tensor: TensorType, name: str = "x") -> GraphInput:
+    return GraphInput(name=name, endpoint=Endpoint(node=node, port=port), type=tensor)
 
 
 def link(edge_id: str, src: str, dst: str, src_port: str = "out", dst_port: str = "in") -> CoreEdge:
@@ -31,8 +35,8 @@ def chain() -> CoreGraph:
             node("pool", "ntb.maxpool2d", kernel_size=[2, 2]),
         ),
         edges=(link("e1", "conv", "act"), link("e2", "act", "pool")),
-        inputs=((Endpoint(node="conv", port="in"), IMAGE),),
-        outputs=(Endpoint(node="pool", port="out"),),
+        inputs=(feed("conv", "in", IMAGE),),
+        outputs=(GraphOutput(name="y", endpoint=Endpoint(node="pool", port="out")),),
     )
 
 
@@ -52,7 +56,7 @@ class TestHappyPath:
     def test_multi_output_ops_record_every_port(self) -> None:
         graph = CoreGraph(
             nodes=(node("attn", "ntb.attention", embed_dim=64, num_heads=4),),
-            inputs=((Endpoint(node="attn", port="query"), TensorType(shape=(2, "seq", 64))),),
+            inputs=(feed("attn", "query", TensorType(shape=(2, "seq", 64))),),
         )
         report = infer_shapes(graph)
         assert report.type_of("attn", "out") is not None
@@ -63,7 +67,7 @@ class TestFailures:
     def test_a_shape_error_is_reported_at_its_node(self) -> None:
         graph = CoreGraph(
             nodes=(node("fc", "ntb.linear", in_features=256, out_features=10),),
-            inputs=((Endpoint(node="fc", port="in"), TensorType(shape=(1, 512))),),
+            inputs=(feed("fc", "in", TensorType(shape=(1, 512))),),
         )
         report = infer_shapes(graph)
         assert not report.ok
@@ -80,7 +84,7 @@ class TestFailures:
                 node("tail", "ntb.relu"),
             ),
             edges=(link("e1", "fc", "act"), link("e2", "act", "tail")),
-            inputs=((Endpoint(node="fc", port="in"), TensorType(shape=(1, 512))),),
+            inputs=(feed("fc", "in", TensorType(shape=(1, 512))),),
         )
         report = infer_shapes(graph)
         assert len(report.issues) == 1
@@ -94,7 +98,7 @@ class TestFailures:
         graph = CoreGraph(
             nodes=(node("a", "ntb.relu"), node("b", "ntb.relu")),
             edges=(link("e1", "a", "b", dst_port="nope"),),
-            inputs=((Endpoint(node="a", port="in"), IMAGE),),
+            inputs=(feed("a", "in", IMAGE),),
         )
         report = infer_shapes(graph)
         assert "has no input port 'nope'" in report.issues[0].message
@@ -103,10 +107,7 @@ class TestFailures:
         graph = CoreGraph(
             nodes=(node("a", "ntb.relu"), node("b", "ntb.relu"), node("c", "ntb.relu")),
             edges=(link("e1", "a", "c"), link("e2", "b", "c")),
-            inputs=(
-                (Endpoint(node="a", port="in"), IMAGE),
-                (Endpoint(node="b", port="in"), IMAGE),
-            ),
+            inputs=(feed("a", "in", IMAGE, "p"), feed("b", "in", IMAGE, "q")),
         )
         report = infer_shapes(graph)
         assert "connected more than once" in report.issues[0].message
