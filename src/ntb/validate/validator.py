@@ -157,7 +157,8 @@ def _check_outputs(graph: CoreGraph, report: ShapeReport) -> list[Diagnostic]:
             )
         ]
     found: list[Diagnostic] = []
-    for endpoint in graph.outputs:
+    for output in graph.outputs:
+        endpoint = output.endpoint
         if report.type_of(endpoint.node, endpoint.port) is None:
             node = graph.node(endpoint.node)
             origin = node.origin if node is not None else None
