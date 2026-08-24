@@ -150,6 +150,21 @@ class CallKind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class WeightSpec:
+    """One learned tensor, named in torch and reshaped for another backend.
+
+    Keras keeps a layer's weights in a list, in its own order and layout. This
+    says which torch tensor fills each slot, which is what lets the parity
+    harness give two backends the same model rather than two similar ones.
+    """
+
+    torch_name: str
+    #: identity, transpose (a Dense kernel), or conv_kernel (out,in,*spatial ->
+    #: *spatial,in,out).
+    transform: str = "identity"
+
+
+@dataclass(frozen=True, slots=True)
 class BackendMapping:
     """How one op is expressed in one Python backend.
 
@@ -167,6 +182,26 @@ class BackendMapping:
     rank_targets: Mapping[int, str] = field(default_factory=dict)
     #: Pass all inputs as one list argument (``torch.cat([a, b], dim=1)``).
     pack_inputs: bool = False
+    #: Layer to insert before this one when ``padding`` is non-zero. Keras takes
+    #: only "valid" or "same", so integer padding has to become its own layer.
+    pad_target: str = ""
+    #: Argument that takes the op's inferred output shape, for backends whose
+    #: version of the op is a reshape (Keras has no axis-range flatten).
+    shape_arg: str = ""
+    #: An expression over the attributes that must hold for this mapping to be
+    #: correct. Emitting refuses rather than producing a model that quietly
+    #: means something else.
+    guard: str = ""
+    guard_message: str = ""
+    #: The layer's weights, in the order the backend keeps them.
+    weights: tuple[WeightSpec, ...] = ()
+    #: Arguments passed when the layer is *called* rather than constructed.
+    #: Keras splits the two, and `return_attention_scores` lives on the call.
+    call_constants: Mapping[str, Any] = field(default_factory=dict)
+    #: Backend arguments computed from NTB attributes, as expressions over them
+    #: ("key_dim": "embed_dim // num_heads"). Evaluated by ntb.spatial.expr, so
+    #: this is arithmetic, not code.
+    derived: Mapping[str, str] = field(default_factory=dict)
     #: Fall an unconnected input back to another port (attention key -> query).
     default_inputs: Mapping[str, str] = field(default_factory=dict)
     #: Pass a named input as a keyword rather than positionally.
@@ -218,6 +253,9 @@ class OnnxMapping:
     #: every port in declaration order followed by every parameter; Gather
     #: needs it because the weight comes before the indices.
     input_order: tuple[str, ...] = ()
+    #: ONNX attribute that takes NTB's ``padding`` as begins-then-ends
+    #: ([1, 1] -> [1, 1, 1, 1]). Not a rename, so attr_map cannot express it.
+    pad_attr: str = ""
     #: NTB-defined op: emits into the ``ntb.ops`` domain with a reference impl.
     custom: bool = False
     notes: str = ""
