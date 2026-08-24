@@ -1,0 +1,391 @@
+{
+  "doc": "Phase-1 exit criterion: a transformer authored by hand, validating with symbolic batch and sequence dimensions.",
+  "metadata": {},
+  "modules": [
+    {
+      "doc": "LayerNorm before each sublayer, residual around each. GPT-style ordering.",
+      "edges": [
+        {
+          "dst": {
+            "node": "attn",
+            "port": "query"
+          },
+          "id": "e1",
+          "src": {
+            "node": "norm1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "drop1",
+            "port": "in"
+          },
+          "id": "e2",
+          "src": {
+            "node": "attn",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "res1",
+            "port": "a"
+          },
+          "id": "e3",
+          "src": {
+            "node": "drop1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "res1",
+            "port": "b"
+          },
+          "id": "e4",
+          "src": {
+            "node": "norm1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "norm2",
+            "port": "in"
+          },
+          "id": "e5",
+          "src": {
+            "node": "res1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "ff_in",
+            "port": "in"
+          },
+          "id": "e6",
+          "src": {
+            "node": "norm2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "act",
+            "port": "in"
+          },
+          "id": "e7",
+          "src": {
+            "node": "ff_in",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "ff_out",
+            "port": "in"
+          },
+          "id": "e8",
+          "src": {
+            "node": "act",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "drop2",
+            "port": "in"
+          },
+          "id": "e9",
+          "src": {
+            "node": "ff_out",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "res2",
+            "port": "a"
+          },
+          "id": "e10",
+          "src": {
+            "node": "drop2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "res2",
+            "port": "b"
+          },
+          "id": "e11",
+          "src": {
+            "node": "res1",
+            "port": "out"
+          }
+        }
+      ],
+      "generators": [],
+      "id": "encoder_block",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "x",
+          "optional": false,
+          "type": {
+            "dtype": "float32",
+            "layout": null,
+            "shape": [
+              "batch",
+              "seq",
+              512
+            ]
+          }
+        }
+      ],
+      "name": "Pre-norm transformer encoder block",
+      "nodes": [
+        {
+          "attrs": {
+            "normalized_shape": [
+              512
+            ]
+          },
+          "id": "norm1",
+          "name": "",
+          "op": "ntb.layernorm",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "causal": true,
+            "embed_dim": 512,
+            "num_heads": 8
+          },
+          "id": "attn",
+          "name": "",
+          "op": "ntb.attention",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              2.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "p": 0.1
+          },
+          "id": "drop1",
+          "name": "",
+          "op": "ntb.dropout",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              4.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "res1",
+          "name": "",
+          "op": "ntb.add",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              6.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "normalized_shape": [
+              512
+            ]
+          },
+          "id": "norm2",
+          "name": "",
+          "op": "ntb.layernorm",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              8.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_features": 512,
+            "out_features": 2048
+          },
+          "id": "ff_in",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              10.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "approximate": "tanh"
+          },
+          "id": "act",
+          "name": "",
+          "op": "ntb.gelu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              12.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_features": 2048,
+            "out_features": 512
+          },
+          "id": "ff_out",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              14.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "p": 0.1
+          },
+          "id": "drop2",
+          "name": "",
+          "op": "ntb.dropout",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              16.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "res2",
+          "name": "",
+          "op": "ntb.add",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              18.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "y",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": []
+    }
+  ],
+  "name": "transformer-encoder-block",
+  "ntb_version": "",
+  "root": "encoder_block",
+  "schema_version": 1
+}
