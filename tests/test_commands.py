@@ -16,6 +16,7 @@ from ntb.commands import (
     AddRule,
     AnyCommand,
     Batch,
+    BindPort,
     CommandError,
     Connect,
     Disconnect,
@@ -98,6 +99,12 @@ def commands() -> list[AnyCommand]:
         AddModule(module=Module(id="block", nodes=(Node(id="n", op="ntb.relu"),))),
         SetRoot(root="m"),
         SetMetadata(name="renamed", doc="hello", metadata={"author": "someone"}),
+        BindPort(
+            module="m",
+            direction=PortDirection.OUT,
+            port="y",
+            endpoint=Endpoint(node="fc1", port="out"),
+        ),
         AddGenerator(module="m", generator=Generator(id="g", module="m", count=3)),
         AddRule(
             module="m",
@@ -164,6 +171,43 @@ class TestEditing:
         document = base()
         apply_command(document, RemoveNode(module="m", node="act"))
         assert document.root_module.node("act") is not None
+
+
+class TestBindPort:
+    def test_binding_says_where_a_port_lands(self) -> None:
+        command = BindPort(
+            module="m", direction=PortDirection.OUT, port="y", endpoint=Endpoint(node="act")
+        )
+        result = apply_command(base(), command)
+        assert result.document.root_module.output_bindings["y"].node == "act"
+
+    def test_clearing_a_binding_goes_back_to_automatic(self) -> None:
+        bound = apply_command(
+            base(),
+            BindPort(
+                module="m", direction=PortDirection.OUT, port="y", endpoint=Endpoint(node="act")
+            ),
+        ).document
+        cleared = apply_command(bound, BindPort(module="m", direction=PortDirection.OUT, port="y"))
+        assert cleared.document.root_module.output_bindings == {}
+        restored = apply_command(cleared.document, cleared.inverse).document
+        assert io.dumps(restored) == io.dumps(bound)
+
+    def test_binding_a_port_that_is_not_declared_is_refused(self) -> None:
+        with pytest.raises(CommandError, match="declares no out port 'ghost'"):
+            apply_command(base(), BindPort(module="m", direction=PortDirection.OUT, port="ghost"))
+
+    def test_binding_to_a_node_that_is_not_there_is_refused(self) -> None:
+        with pytest.raises(CommandError, match="has no node 'ghost'"):
+            apply_command(
+                base(),
+                BindPort(
+                    module="m",
+                    direction=PortDirection.OUT,
+                    port="y",
+                    endpoint=Endpoint(node="ghost"),
+                ),
+            )
 
 
 class TestSpatialCommands:
