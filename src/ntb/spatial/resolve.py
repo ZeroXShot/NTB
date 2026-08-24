@@ -5,19 +5,20 @@ recognised but not expanded yet; they raise :class:`NotResolvable` naming the
 phase they land in, rather than silently lowering half a model. See
 docs/adr/0002.
 
-A module's boundary ports bind to its *free* node ports -- inputs nothing feeds,
-outputs nothing consumes -- matched in declaration order. Authors control that
-order, so binding stays predictable without a second edge syntax.
+A module's boundary ports bind to the free ports of its *terminal* nodes, in
+declaration order: a node contributes inputs only if nothing feeds any of its
+inputs, and outputs only if nothing consumes any of its outputs. Without the
+terminal test an unconsumed secondary output -- attention weights, say -- would
+capture the module output ahead of the node that actually ends the chain.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, Origin
+from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, GraphInput, GraphOutput, Origin
 from ntb.ir.document import Document, Module
 from ntb.ir.graph import Endpoint, Node
-from ntb.ir.types import TensorType
 from ntb.ops.registry import REGISTRY, OpRegistry
 
 #: Op name marking a node that instantiates another Module.
@@ -47,14 +48,14 @@ def resolve(document: Document, *, registry: OpRegistry = REGISTRY) -> CoreGraph
     lowering = _Lowering(document, registry)
     root = lowering.expand(document.root_module, prefix="", stack=())
 
-    inputs: list[tuple[Endpoint, TensorType]] = []
+    inputs: list[GraphInput] = []
     for port in document.root_module.inputs:
         endpoint = root.inputs.get(port.name)
         if endpoint is not None and port.type is not None:
-            inputs.append((endpoint, port.type))
+            inputs.append(GraphInput(name=port.name, endpoint=endpoint, type=port.type))
 
     outputs = tuple(
-        endpoint
+        GraphOutput(name=port.name, endpoint=endpoint)
         for port in document.root_module.outputs
         if (endpoint := root.outputs.get(port.name)) is not None
     )
@@ -176,8 +177,11 @@ class _Lowering:
                 out_names = [p.name for p in spec.outputs] if spec else ["out"]
                 candidates_in = [Endpoint(node=qualified, port=n) for n in in_names]
                 candidates_out = [Endpoint(node=qualified, port=n) for n in out_names]
-            free_in.extend(e for e in candidates_in if (e.node, e.port) not in consumed)
-            free_out.extend(e for e in candidates_out if (e.node, e.port) not in produced)
+
+            if not any((e.node, e.port) in consumed for e in candidates_in):
+                free_in.extend(candidates_in)
+            if not any((e.node, e.port) in produced for e in candidates_out):
+                free_out.extend(candidates_out)
 
         return _Boundary(
             inputs=_match(module, "input", [p.name for p in module.inputs], free_in),
