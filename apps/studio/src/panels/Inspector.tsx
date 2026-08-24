@@ -4,23 +4,27 @@
 
 import { useEffect, useState } from "react";
 import type { JSX } from "react";
-import type { AttrInfo, Node, OpInfo, Snapshot } from "../types";
+import type { AttrInfo, Block, Node, OpInfo, Snapshot } from "../types";
 
 interface Props {
   node: Node | undefined;
+  block: Block | undefined;
   op: OpInfo | undefined;
   snapshot: Snapshot | null;
   onRename: (name: string) => void;
   onAttrs: (attrs: Record<string, unknown>) => void;
+  onMove: (pos: [number, number, number]) => void;
   onDelete: () => void;
 }
 
 export function Inspector({
   node,
+  block,
   op,
   snapshot,
   onRename,
   onAttrs,
+  onMove,
   onDelete,
 }: Props): JSX.Element {
   const [draft, setDraft] = useState("");
@@ -30,7 +34,20 @@ export function Inspector({
     return (
       <aside className="panel inspector">
         <h2>Inspector</h2>
-        <p className="empty">Select a block.</p>
+        {block?.kind === "generated" ? (
+          <>
+            <p>
+              <strong>{block.label}</strong> is repetition {block.index} of generator{" "}
+              <code>{block.source}</code>, which repeats module <code>{block.op}</code>.
+            </p>
+            <p className="empty">
+              Nobody placed it, so it cannot be moved or deleted on its own. Edit the
+              generator to change every repetition at once.
+            </p>
+          </>
+        ) : (
+          <p className="empty">Select a block.</p>
+        )}
       </aside>
     );
   }
@@ -85,9 +102,26 @@ export function Inspector({
         </tbody>
       </table>
 
-      <p className="placement">
-        at ({(node.placement?.pos ?? [0, 0, 0]).map((v) => v.toFixed(2)).join(", ")})
-      </p>
+      <h3>placement</h3>
+      <p className="empty">Where a block sits is part of the model, not a view setting.</p>
+      <div className="field axes">
+        <label>x y z</label>
+        <div>
+          {[0, 1, 2].map((axis) => (
+            <input
+              key={axis}
+              type="number"
+              step="0.25"
+              value={(node.placement?.pos ?? [0, 0, 0])[axis]}
+              onChange={(event) => {
+                const pos: [number, number, number] = [...(node.placement?.pos ?? [0, 0, 0])];
+                pos[axis] = Number(event.target.value);
+                onMove(pos);
+              }}
+            />
+          ))}
+        </div>
+      </div>
       <button className="danger" onClick={onDelete}>
         Delete block
       </button>
