@@ -1,0 +1,392 @@
+{
+  "doc": "Phase-1 exit criterion: a 3D CNN authored by hand.",
+  "metadata": {},
+  "modules": [
+    {
+      "doc": "A 3D convolutional classifier over a (depth, height, width) volume.",
+      "edges": [
+        {
+          "dst": {
+            "node": "bn1",
+            "port": "in"
+          },
+          "id": "e1",
+          "src": {
+            "node": "conv1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "act1",
+            "port": "in"
+          },
+          "id": "e2",
+          "src": {
+            "node": "bn1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "pool1",
+            "port": "in"
+          },
+          "id": "e3",
+          "src": {
+            "node": "act1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "conv2",
+            "port": "in"
+          },
+          "id": "e4",
+          "src": {
+            "node": "pool1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "bn2",
+            "port": "in"
+          },
+          "id": "e5",
+          "src": {
+            "node": "conv2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "act2",
+            "port": "in"
+          },
+          "id": "e6",
+          "src": {
+            "node": "bn2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "pool2",
+            "port": "in"
+          },
+          "id": "e7",
+          "src": {
+            "node": "act2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "gap",
+            "port": "in"
+          },
+          "id": "e8",
+          "src": {
+            "node": "pool2",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "head",
+            "port": "in"
+          },
+          "id": "e9",
+          "src": {
+            "node": "gap",
+            "port": "out"
+          }
+        }
+      ],
+      "generators": [],
+      "id": "cnn3d",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "volume",
+          "optional": false,
+          "type": {
+            "dtype": "float32",
+            "layout": "NCDHW",
+            "shape": [
+              "batch",
+              1,
+              32,
+              64,
+              64
+            ]
+          }
+        }
+      ],
+      "name": "Volumetric CNN",
+      "nodes": [
+        {
+          "attrs": {
+            "in_channels": 1,
+            "kernel_size": [
+              3,
+              3,
+              3
+            ],
+            "out_channels": 16,
+            "padding": [
+              1,
+              1,
+              1
+            ]
+          },
+          "id": "conv1",
+          "name": "",
+          "op": "ntb.conv3d",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "num_features": 16
+          },
+          "id": "bn1",
+          "name": "",
+          "op": "ntb.batchnorm",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              2.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "act1",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              4.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "kernel_size": [
+              2,
+              2,
+              2
+            ]
+          },
+          "id": "pool1",
+          "name": "",
+          "op": "ntb.maxpool3d",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              6.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_channels": 16,
+            "kernel_size": [
+              3,
+              3,
+              3
+            ],
+            "out_channels": 32,
+            "padding": [
+              1,
+              1,
+              1
+            ]
+          },
+          "id": "conv2",
+          "name": "",
+          "op": "ntb.conv3d",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              8.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "num_features": 32
+          },
+          "id": "bn2",
+          "name": "",
+          "op": "ntb.batchnorm",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              10.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "act2",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              12.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "kernel_size": [
+              2,
+              2,
+              2
+            ]
+          },
+          "id": "pool2",
+          "name": "",
+          "op": "ntb.maxpool3d",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              14.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "gap",
+          "name": "",
+          "op": "ntb.global_avgpool",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              16.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_features": 32,
+            "out_features": 10
+          },
+          "id": "head",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              18.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "logits",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": []
+    }
+  ],
+  "name": "cnn3d",
+  "ntb_version": "",
+  "root": "cnn3d",
+  "schema_version": 1
+}
