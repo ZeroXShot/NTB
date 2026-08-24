@@ -17,7 +17,15 @@ import pytest
 
 from ntb.emit.onnx import export, resolve_param_shape
 from ntb.emit.torch import emit
-from ntb.ir import CoreGraph, CoreNode, Endpoint, GraphInput, GraphOutput, TensorType
+from ntb.ir import (
+    CoreEdge,
+    CoreGraph,
+    CoreNode,
+    Endpoint,
+    GraphInput,
+    GraphOutput,
+    TensorType,
+)
 from ntb.ir.core import Origin
 from ntb.ir.types import DType
 from ntb.ops import REGISTRY, OpSpec
@@ -29,30 +37,52 @@ UNVERIFIED = [spec.name for spec in REGISTRY if spec.parity is None]
 
 
 def build_graph(spec: OpSpec) -> CoreGraph:
-    """A one-node graph exercising ``spec`` on its declared parity case."""
+    """A graph exercising ``spec`` on its declared parity case.
+
+    Usually one node. A variadic port needs several sources, and a graph input
+    can only land on a port once, so each of those arrives through its own relu
+    -- an op the harness has already verified.
+    """
     case = spec.parity
     assert case is not None
+    origin = Origin(module="parity", node="n")
+    nodes = [CoreNode(id="n", op=spec.name, attrs=dict(case.attrs), origin=origin)]
+    inputs = [
+        GraphInput(
+            name=port,
+            endpoint=Endpoint(node="n", port=port),
+            type=TensorType(
+                dtype=DType.INT64 if port in case.integer_inputs else DType.FLOAT32,
+                shape=tuple(shape),
+            ),
+        )
+        for port, shape in case.inputs.items()
+    ]
+    edges: list[CoreEdge] = []
+    for port, shapes in case.fan_in.items():
+        for index, shape in enumerate(shapes):
+            feeder = f"src{index}"
+            nodes.append(CoreNode(id=feeder, op="ntb.relu", origin=origin))
+            inputs.append(
+                GraphInput(
+                    name=f"{port}{index}",
+                    endpoint=Endpoint(node=feeder, port="in"),
+                    type=TensorType(shape=tuple(shape)),
+                )
+            )
+            edges.append(
+                CoreEdge(
+                    id=f"e{index}",
+                    src=Endpoint(node=feeder, port="out"),
+                    dst=Endpoint(node="n", port=port),
+                    origin=origin,
+                )
+            )
     return CoreGraph(
         name=spec.name.replace(".", "_"),
-        nodes=(
-            CoreNode(
-                id="n",
-                op=spec.name,
-                attrs=dict(case.attrs),
-                origin=Origin(module="parity", node="n"),
-            ),
-        ),
-        inputs=tuple(
-            GraphInput(
-                name=port,
-                endpoint=Endpoint(node="n", port=port),
-                type=TensorType(
-                    dtype=DType.INT64 if port in case.integer_inputs else DType.FLOAT32,
-                    shape=tuple(shape),
-                ),
-            )
-            for port, shape in case.inputs.items()
-        ),
+        nodes=tuple(nodes),
+        edges=tuple(edges),
+        inputs=tuple(inputs),
         outputs=(GraphOutput(name="out", endpoint=Endpoint(node="n", port="out")),),
     )
 
@@ -67,6 +97,9 @@ def sample_inputs(spec: OpSpec, seed: int = 0) -> dict[str, Any]:
             values[port] = rng.integers(0, case.index_limit, size=shape).astype(np.int64)
         else:
             values[port] = rng.standard_normal(shape).astype(np.float32)
+    for port, shapes in case.fan_in.items():
+        for index, shape in enumerate(shapes):
+            values[f"{port}{index}"] = rng.standard_normal(shape).astype(np.float32)
     return values
 
 
