@@ -49,6 +49,9 @@ path = "src/ntb/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ntb"]
+# The studio bundle is git-ignored build output, and hatchling skips ignored
+# files unless they are named here. Without this the wheel ships no UI.
+artifacts = ["src/ntb/_static/**"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/ntb", "schema", "examples", "tests", "README.md", "LICENSE"]
