@@ -297,6 +297,13 @@ def _attributes(mapping: OnnxMapping, attrs: dict[str, Any]) -> dict[str, Any]:
         value = attrs.get(ntb_name)
         if value is not None:
             result[onnx_name] = list(value) if isinstance(value, (list, tuple)) else value
+    if mapping.pad_attr:
+        # ONNX writes padding as every begin followed by every end. Leaving it
+        # out silently exports a smaller convolution than the one authored.
+        padding = attrs.get("padding") or []
+        values = list(padding) if isinstance(padding, (list, tuple)) else [padding]
+        if any(values):
+            result[mapping.pad_attr] = values + values
     result.update(mapping.constants)
     return result
 
