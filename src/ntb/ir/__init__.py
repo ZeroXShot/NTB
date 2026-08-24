@@ -4,7 +4,7 @@ Two levels: the authored spatial level (this package) and NTB-Core IR, the flat
 geometry-free DAG produced by ``ntb.spatial.resolve``. See docs/adr/0001, 0002.
 """
 
-from ntb.ir.core import CoreEdge, CoreGraph, CoreNode
+from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, GraphInput, GraphOutput
 from ntb.ir.document import Document, Module
 from ntb.ir.graph import Edge, Endpoint, Generator, Node, Port, PortDirection
 from ntb.ir.spatial import Axis, Orientation, Placement, SpatialRule, SpatialRuleKind
@@ -20,6 +20,8 @@ __all__ = [
     "Edge",
     "Endpoint",
     "Generator",
+    "GraphInput",
+    "GraphOutput",
     "Module",
     "Node",
     "Orientation",
