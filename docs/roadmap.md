@@ -7,13 +7,30 @@ do not overlap: an unfinished foundation makes every later phase more expensive.
 |---|---|---|---|
 | 0 | Repo, licence, CI matrix, ADRs | CI green on 9 os/python combinations | **done** |
 | 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | **done** |
-| 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | |
+| 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | **done** |
 | 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
 | 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 2 in detail
+
+- [x] `ntb.emit.pysrc`: Python source built through `ast`, formatted with ruff
+- [x] torch emitter producing a readable `nn.Module`, with backend adaptations
+      declared in the registry rather than special-cased in the emitter
+- [x] Direct ONNX export, including weight initialisers and dynamic axes
+- [x] Numeric parity harness generated from the registry: 24 of 30 ops verified
+      identical between torch and onnxruntime, with weights transferred so the
+      comparison means something
+- [x] Golden files for the generated torch source
+- [x] `ntb emit --backend torch|onnx`
+
+Not yet verified across backends: `attention`, `rmsnorm` (both need opset 23+),
+`silu` (no standard ONNX op), `dropout` (stochastic), and `reshape`/`flatten`
+(ONNX takes the target shape as an input tensor, which the exporter does not
+build yet).
 
 ## Phase 1 in detail
 
