@@ -20,15 +20,17 @@ machine, and nothing but your machine can talk to it
 
 * **Ops** (left) — the registry. Every op NTB knows, with the backends it can
   reach. Clicking one adds a block.
-* **Canvas** (centre) — one three.js scene. In this release you are looking at
-  it through an orthographic camera with the Z axis locked; phase 4 unlocks the
-  perspective camera and edits in three dimensions.
+* **Canvas** (centre) — one three.js scene, seen through an orthographic camera
+  in 2D and a perspective one in 3D. The toolbar switches between them; it is
+  the same scene, the same selection and the same picking either way.
 * **Inspector** (right) — id, label, attributes and the *inferred* type on every
   port. The attribute editors are built from the op's declaration, so they are
   never out of date with the registry.
-* **Problems / torch** (bottom) — validation and the generated PyTorch source.
-  Both are recomputed by the server after every edit, and the source is exactly
-  what `ntb emit` would write to a file.
+* **Problems / torch / Space** (bottom) — validation, the generated PyTorch
+  source, and the generators and spatial rules of the current module. The first
+  two are recomputed by the server after every edit, and the source is exactly
+  what `ntb emit` would write to a file. The third is where 3D architectures are
+  actually authored: see [docs/spatial.md](spatial.md).
 
 ## Editing
 
@@ -43,6 +45,8 @@ machine, and nothing but your machine can talk to it
 | Undo / redo | `Ctrl`/`Cmd` `Z`, add `Shift` to redo |
 | Save | `Ctrl`/`Cmd` `S` |
 | Pan / zoom | Drag the background / scroll |
+| Orbit (3D) | Drag the background; shift-drag pans |
+| Lift along Z | Alt-drag a block |
 
 A connection joins the source's first output to the target's first free input.
 Which ports those are comes from the registry.
@@ -74,11 +78,20 @@ result = apply_command(
 io.save(result.document, "model.ntb")
 ```
 
-A boundary editor is part of phase 4.
+## Generators and rules
+
+Blocks a generator produced are drawn in violet and cannot be moved one at a
+time: the generator is the object, so edit it in the **Space** panel and every
+repetition follows at once. Edges are coloured by where they came from — grey
+for the ones you drew, cyan for a spatial rule, blue for a generator's chain —
+and the corner of the canvas counts how many edges nobody drew.
+
+Alt-drag lifts a block along Z, which is the only way to author a Z coordinate
+by hand; the inspector has exact number fields for all three axes.
 
 ## What it does not do yet
 
-* No editing in 3D. The scene is ready for it; the camera and the tools are not.
+* No editor for a module's boundary ports; use the snippet above.
 * Connections are made by picking two blocks, not by dragging port to port.
 * No training from the UI — that is phase 6. Emit the source and run it.
 * One document per server. Opening a second file replaces the session.
