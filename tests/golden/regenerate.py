@@ -1,0 +1,31 @@
+"""Rewrite the golden files after a deliberate change to an emitter.
+
+Review the resulting diff: these files exist so that a change in generated code
+is read by a human, not accepted silently.
+
+    python tests/golden/regenerate.py
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from ntb.emit import emit_torch_document
+from ntb.ir import io
+
+ROOT = Path(__file__).resolve().parents[2]
+EXAMPLES = ROOT / "examples"
+NAMES = ("mlp", "transformer_block", "cnn3d")
+
+
+def main() -> None:
+    target = Path(__file__).resolve().parent / "torch"
+    target.mkdir(parents=True, exist_ok=True)
+    for name in NAMES:
+        emitted = emit_torch_document(io.load(EXAMPLES / f"{name}.ntb"))
+        (target / f"{name}.py").write_text(emitted.source, encoding="utf-8", newline="\n")
+        print(f"wrote {name}.py")
+
+
+if __name__ == "__main__":
+    main()
