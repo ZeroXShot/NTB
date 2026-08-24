@@ -12,7 +12,7 @@ from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from ntb.ir.document import Document, Module
-from ntb.ir.graph import Edge, Generator, Node, Port, PortDirection
+from ntb.ir.graph import Edge, Endpoint, Generator, Node, Port, PortDirection
 from ntb.ir.spatial import Placement, SpatialRule
 from ntb.ir.types import Identifier
 
@@ -290,6 +290,42 @@ class SetModulePorts(Command):
         return _put(document, updated), inverse
 
 
+class BindPort(Command):
+    """Say exactly where a boundary port lands, or clear it back to automatic.
+
+    Positional binding is convenient until a module has two plausible answers,
+    which is when this exists.
+    """
+
+    kind: Literal["bind_port"] = "bind_port"
+    module: Identifier
+    direction: PortDirection
+    port: Identifier
+    endpoint: Endpoint | None = None
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        field = "input_bindings" if self.direction is PortDirection.IN else "output_bindings"
+        declared = module.inputs if self.direction is PortDirection.IN else module.outputs
+        if not any(port.name == self.port for port in declared):
+            raise CommandError(
+                f"module {self.module!r} declares no {self.direction} port {self.port!r}"
+            )
+        if self.endpoint is not None:
+            _node(module, self.endpoint.node)
+
+        bindings = dict(getattr(module, field))
+        previous = bindings.get(self.port)
+        if self.endpoint is None:
+            bindings.pop(self.port, None)
+        else:
+            bindings[self.port] = self.endpoint
+        inverse = BindPort(
+            module=self.module, direction=self.direction, port=self.port, endpoint=previous
+        )
+        return _put(document, _rebuild(module, **{field: bindings})), inverse
+
+
 class AddModule(Command):
     """Add a module to the document."""
 
@@ -372,7 +408,8 @@ class Batch(Command):
 
 
 AnyCommand: TypeAlias = Annotated[
-    AddGenerator
+    BindPort
+    | AddGenerator
     | RemoveGenerator
     | UpdateGenerator
     | AddRule
