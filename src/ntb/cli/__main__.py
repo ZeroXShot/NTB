@@ -12,6 +12,12 @@ from typing import Annotated
 import typer
 
 from ntb import __version__
+from ntb.emit import (
+    EmitError,
+    OnnxEmitError,
+    emit_torch_document,
+    export_onnx_document,
+)
 from ntb.ir import io, schema
 from ntb.ir.document import Document
 from ntb.ops import REGISTRY
@@ -144,9 +150,51 @@ def shapes(
 
 
 @app.command()
-def emit() -> None:
-    """Generate torch / Keras 3 / ONNX from a document. (Phase 2)"""
-    _not_yet("emit", phase=2)
+def emit(
+    path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
+    backend: Annotated[str, typer.Option(help="torch or onnx (keras ships in phase 5).")] = "torch",
+    out: Annotated[Path | None, typer.Option(help="Write here instead of standard output.")] = None,
+    class_name: Annotated[str | None, typer.Option(help="Name the generated class.")] = None,
+    opset: Annotated[int, typer.Option(help="ONNX opset to target.")] = 20,
+) -> None:
+    """Generate framework code from a document."""
+    if backend not in {"torch", "onnx"}:
+        typer.secho(
+            f"backend {backend!r} is not available; keras ships in phase 5",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    document = _load(path)
+    try:
+        if backend == "onnx":
+            _emit_onnx(document, out, opset)
+            return
+        emitted = emit_torch_document(document, class_name=class_name)
+    except (EmitError, OnnxEmitError, NotResolvable, ResolveError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    if out is None:
+        typer.echo(emitted.source, nl=False)
+        return
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(emitted.source, encoding="utf-8", newline="\n")
+    typer.secho(f"wrote {out} ({emitted.class_name})", fg=typer.colors.GREEN)
+
+
+def _emit_onnx(document: Document, out: Path | None, opset: int) -> None:
+    if out is None:
+        typer.secho(
+            "ONNX is binary; pass --out to write a .onnx file", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(code=2)
+    exported = export_onnx_document(document, opset=opset)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    exported.save(out)
+    nodes = len(exported.model.graph.node)
+    typer.secho(f"wrote {out} (opset {exported.opset}, {nodes} nodes)", fg=typer.colors.GREEN)
 
 
 @app.command()
