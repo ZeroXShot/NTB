@@ -12,6 +12,8 @@ from ntb.ops.spec import (
     CallKind,
     OnnxMapping,
     OpSpec,
+    ParamSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
 )
@@ -57,7 +59,15 @@ LINEAR = register(
             imports=("keras",),
             notes="Keras infers in_features on first call.",
         ),
-        onnx=OnnxMapping(op_type="Gemm", constants={"transB": 1}),
+        onnx=OnnxMapping(
+            op_type="Gemm",
+            constants={"transB": 1},
+            params=(
+                ParamSpec("W", ("out_features", "in_features"), torch_name="weight"),
+                ParamSpec("B", ("out_features",), when="bias", zeros=True, torch_name="bias"),
+            ),
+        ),
+        parity=ParityCase(inputs={"in": (3, 8)}, attrs={"in_features": 8, "out_features": 5}),
     )
 )
 
@@ -97,7 +107,16 @@ EMBEDDING = register(
             imports=("keras",),
             notes="No padding_idx; mask_zero only covers index 0.",
         ),
-        onnx=OnnxMapping(op_type="Gather", notes="Weight is the data input, indices the second."),
+        onnx=OnnxMapping(
+            op_type="Gather",
+            params=(ParamSpec("W", ("num_embeddings", "embedding_dim"), torch_name="weight"),),
+            input_order=("W", "in"),
+        ),
+        parity=ParityCase(
+            inputs={"in": (2, 4)},
+            attrs={"num_embeddings": 8, "embedding_dim": 5},
+            integer_inputs=("in",),
+        ),
     )
 )
 
@@ -128,6 +147,7 @@ MATMUL = register(
         torch=BackendMapping(target="torch.matmul", kind=CallKind.FUNCTION, imports=("torch",)),
         keras=BackendMapping(target="keras.ops.matmul", kind=CallKind.FUNCTION, imports=("keras",)),
         onnx=OnnxMapping(op_type="MatMul"),
+        parity=ParityCase(inputs={"a": (2, 3, 4), "b": (2, 4, 5)}),
     )
 )
 
