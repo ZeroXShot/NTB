@@ -11,6 +11,7 @@ from ntb.ops.spec import (
     BackendMapping,
     OnnxMapping,
     OpSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
     ShapeRule,
@@ -26,7 +27,7 @@ def _pool_rule(spatial: int) -> ShapeRule:
             ctx.fail(f"input must be rank {spatial + 2}, got rank {x.rank}")
 
         kernel = ntuple(ctx, "kernel_size", spatial)
-        stride = ntuple(ctx, "stride", spatial) if ctx.attrs.get("stride") else kernel
+        stride = ntuple(ctx, "stride", spatial)
         padding = ntuple(ctx, "padding", spatial)
 
         try:
@@ -57,12 +58,7 @@ def _pool(kind: str, spatial: int, *, torch_cls: str, keras_cls: str, onnx_op: s
             outputs=(PortSpec("out"),),
             attrs=(
                 AttrSpec("kernel_size", AttrType.INTS, required=True, minimum=1),
-                AttrSpec(
-                    "stride",
-                    AttrType.INTS,
-                    minimum=1,
-                    doc="Defaults to kernel_size, matching torch and Keras.",
-                ),
+                AttrSpec("stride", AttrType.INTS, minimum=1, default_from="kernel_size"),
                 AttrSpec("padding", AttrType.INTS, default=[0] * spatial, minimum=0),
             ),
             shape_rule=_pool_rule(spatial),
@@ -84,6 +80,10 @@ def _pool(kind: str, spatial: int, *, torch_cls: str, keras_cls: str, onnx_op: s
             onnx=OnnxMapping(
                 op_type=onnx_op,
                 attr_map={"kernel_size": "kernel_shape", "stride": "strides"},
+            ),
+            parity=ParityCase(
+                inputs={"in": (2, 3, *([8] * spatial))},
+                attrs={"kernel_size": [2] * spatial},
             ),
         )
     )
@@ -124,8 +124,7 @@ def _global_avgpool(ctx: ShapeContext) -> dict[str, TensorType]:
     require_float(ctx, x)
     if x.rank < 3:
         ctx.fail(f"input needs at least one spatial axis, got rank {x.rank}")
-    keep = ctx.attr("keepdims")
-    spatial: tuple[int, ...] = (1,) * (x.rank - 2) if keep else ()
+    spatial = (1,) * (x.rank - 2)
     return {"out": TensorType(dtype=x.dtype, shape=(*x.shape[:2], *spatial), layout=x.layout)}
 
 
@@ -133,24 +132,32 @@ GLOBAL_AVGPOOL = register(
     OpSpec(
         name="ntb.global_avgpool",
         category="pooling",
-        doc="Averages every spatial axis away, leaving batch and channels.",
+        doc="Averages every spatial axis to size 1. Follow with a flatten to drop them.",
         inputs=(PortSpec("in"),),
         outputs=(PortSpec("out"),),
-        attrs=(AttrSpec("keepdims", AttrType.BOOL, default=False),),
         shape_rule=_global_avgpool,
         torch=BackendMapping(
             target="torch.nn.AdaptiveAvgPool2d",
+            rank_targets={
+                3: "torch.nn.AdaptiveAvgPool1d",
+                4: "torch.nn.AdaptiveAvgPool2d",
+                5: "torch.nn.AdaptiveAvgPool3d",
+            },
             constants={"output_size": 1},
             imports=("torch", "torch.nn"),
-            notes="The emitter picks the 1d/2d/3d variant and squeezes if needed.",
         ),
         keras=BackendMapping(
             target="keras.layers.GlobalAveragePooling2D",
-            attr_map={"keepdims": "keepdims"},
-            constants={"data_format": "channels_first"},
+            rank_targets={
+                3: "keras.layers.GlobalAveragePooling1D",
+                4: "keras.layers.GlobalAveragePooling2D",
+                5: "keras.layers.GlobalAveragePooling3D",
+            },
+            constants={"data_format": "channels_first", "keepdims": True},
             imports=("keras",),
         ),
         onnx=OnnxMapping(op_type="GlobalAveragePool"),
+        parity=ParityCase(inputs={"in": (2, 3, 5, 5)}),
     )
 )
 
