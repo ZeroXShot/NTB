@@ -9,6 +9,7 @@ from ntb.ops.spec import (
     CallKind,
     OnnxMapping,
     OpSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
 )
@@ -39,6 +40,7 @@ def _op(name: str, doc: str, *, torch_fn: str, keras_fn: str, onnx_op: str) -> O
             torch=BackendMapping(target=torch_fn, kind=CallKind.FUNCTION, imports=("torch",)),
             keras=BackendMapping(target=keras_fn, kind=CallKind.FUNCTION, imports=("keras",)),
             onnx=OnnxMapping(op_type=onnx_op),
+            parity=ParityCase(inputs={"a": (2, 4), "b": (2, 4)}),
         )
     )
 
