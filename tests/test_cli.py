@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.conftest import EXAMPLES, SCHEMA_DIR
+import pytest
 from typer.testing import CliRunner
 
 from ntb import __version__
 from ntb.cli import app
+from tests.conftest import EXAMPLES, SCHEMA_DIR
 
 runner = CliRunner()
 
@@ -57,7 +58,7 @@ def test_checked_in_schema_matches_the_models() -> None:
 
 
 def test_unimplemented_commands_say_which_phase_they_land_in() -> None:
-    for command, phase in (("emit", "2"), ("studio", "3"), ("run", "6")):
+    for command, phase in (("studio", "3"), ("run", "6")):
         result = runner.invoke(app, [command])
         assert result.exit_code == 2
         assert f"phase {phase}" in result.output
@@ -96,3 +97,43 @@ def test_validate_strict_turns_warnings_into_failure() -> None:
     strict = runner.invoke(app, ["validate", "--strict", str(EXAMPLES / "vertical_tower.ntb")])
     assert lenient.exit_code == 0
     assert strict.exit_code == 1
+
+
+def test_emit_writes_torch_to_a_file(tmp_path: Path) -> None:
+    target = tmp_path / "generated" / "model.py"
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--out", str(target)])
+    assert result.exit_code == 0
+    assert "class Mlp(torch.nn.Module):" in target.read_text(encoding="utf-8")
+
+
+def test_emit_prints_to_stdout_by_default() -> None:
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb")])
+    assert result.exit_code == 0
+    assert result.stdout.startswith("import torch")
+
+
+def test_emit_refuses_a_backend_that_is_not_ready() -> None:
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "keras"])
+    assert result.exit_code == 2
+    assert "phase 5" in result.output
+
+
+def test_emit_refuses_a_document_it_cannot_lower() -> None:
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "vertical_tower.ntb")])
+    assert result.exit_code == 1
+
+
+def test_emit_onnx_writes_a_model(tmp_path: Path) -> None:
+    pytest.importorskip("onnx")
+    target = tmp_path / "model.onnx"
+    result = runner.invoke(
+        app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "onnx", "--out", str(target)]
+    )
+    assert result.exit_code == 0
+    assert target.stat().st_size > 0
+
+
+def test_emit_onnx_without_out_explains_why() -> None:
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "onnx"])
+    assert result.exit_code == 2
+    assert "--out" in result.output
