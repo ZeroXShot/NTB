@@ -351,15 +351,15 @@ class TestPooling:
         ]
         assert out.shape == (1, 3, 16, 16)
 
-    def test_global_avgpool_drops_every_spatial_axis(self) -> None:
+    def test_global_avgpool_reduces_every_spatial_axis_to_one(self) -> None:
+        # It keeps the axes rather than squeezing them: one op, one operation.
+        # Dropping them is a flatten, and says so in the graph.
         out = infer("ntb.global_avgpool", {"in": TensorType(shape=("batch", 512, 7, 7))})["out"]
-        assert out.shape == ("batch", 512)
+        assert out.shape == ("batch", 512, 1, 1)
 
-    def test_global_avgpool_can_keep_them(self) -> None:
-        out = infer("ntb.global_avgpool", {"in": TensorType(shape=(1, 512, 7, 7))}, keepdims=True)[
-            "out"
-        ]
-        assert out.shape == (1, 512, 1, 1)
+    def test_global_avgpool_needs_a_spatial_axis(self) -> None:
+        with pytest.raises(ShapeRuleError, match="at least one spatial axis"):
+            infer("ntb.global_avgpool", {"in": TensorType(shape=(4, 8))})
 
 
 class TestShapeOps:
