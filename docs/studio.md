@@ -53,9 +53,12 @@ Which ports those are comes from the registry.
 
 ## Declaring the model's inputs
 
-A model needs to know what flows in. The studio edits blocks; the boundary is
-still declared on the module, which for now is done in the file or through the
-command bus:
+A model needs to know what flows in, and where its ports land. The **Space**
+panel binds a declared port to a specific `node.port`; `auto` leaves it to the
+positional rule (see [docs/spatial.md](spatial.md)).
+
+Declaring the ports themselves, with their types, is still done in the file or
+through the command bus:
 
 ```python
 from ntb.commands import SetModulePorts, apply_command
@@ -91,7 +94,8 @@ by hand; the inspector has exact number fields for all three axes.
 
 ## What it does not do yet
 
-* No editor for a module's boundary ports; use the snippet above.
+* No editor for declaring a port and its type; the Space panel only binds ports
+  that already exist. Use the snippet above.
 * Connections are made by picking two blocks, not by dragging port to port.
 * No training from the UI — that is phase 6. Emit the source and run it.
 * One document per server. Opening a second file replaces the session.
