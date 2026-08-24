@@ -59,7 +59,7 @@ def infer_shapes(graph: CoreGraph, *, registry: OpRegistry = REGISTRY) -> ShapeR
         )
 
     types: dict[PortRef, TensorType] = {
-        (endpoint.node, endpoint.port): tensor for endpoint, tensor in graph.inputs
+        (item.endpoint.node, item.endpoint.port): item.type for item in graph.inputs
     }
     issues: list[ShapeIssue] = []
     unresolved: set[str] = set()
