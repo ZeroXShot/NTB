@@ -3,9 +3,10 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.1.0, early.** The IR, a 30-op registry, symbolic shape inference,
-> validation, the torch and ONNX backends and the 2D studio work today. Editing
-> in 3D — the reason the project exists — lands in phase 4. See
+> **Status: 0.2.0, early.** The IR, a 31-op registry, symbolic shape inference,
+> validation, the torch and ONNX backends, the studio in 2D and 3D, and the
+> spatial semantics that make the project worth building all work today. Keras 3,
+> training inside NTB and the MCP server are next. See
 > [the roadmap](docs/roadmap.md).
 
 ## Why another model builder
@@ -37,11 +38,12 @@ versions and hardware.
 
 ```bash
 ntb studio                               # the editor, in your browser
-ntb studio examples/mlp.ntb              # open a model in it
+ntb studio examples/lattice_3d.ntb       # a network built out of geometry
 ntb ops                                  # the canonical op registry
 ntb validate examples/transformer_block.ntb
 ntb shapes examples/cnn3d.ntb            # the inferred type on every port
 ntb info examples/vertical_tower.ntb      # a 12-high stack built by a Generator
+ntb resolve examples/lattice_3d.ntb      # every edge geometry derived, marked
 ntb emit examples/mlp.ntb                # readable PyTorch source
 ntb emit examples/mlp.ntb --backend onnx --out mlp.onnx
 ```
@@ -69,6 +71,27 @@ ctx = ShapeContext(
 print(conv.shape_rule(ctx)["out"])
 # float32[batch, 16, floor(h/2 - 3/2) + 1, 111]
 ```
+
+## Geometry is the architecture
+
+`examples/lattice_3d.ntb` is sixteen cells on a 2x2x4 grid. Nobody drew an edge
+in it. A single `lattice` rule reads where the cells sit and wires each one to
+its neighbours up and sideways:
+
+```bash
+$ ntb resolve examples/lattice_3d.ntb
+lattice-3d: 64 nodes, 76 edges
+  col0-0/act.out  -> col1-0/mix.in    via grid
+  col0-0/act.out  -> col0-1/mix.in    via grid
+  ...
+```
+
+Four `Generator`s stand for those sixteen cells; changing `count` from 4 to 6
+makes the network taller, and the generated torch grows with it. Move a column
+and the topology changes, because in NTB position *is* the model.
+
+[docs/spatial.md](docs/spatial.md) is the reference for the four rules,
+generators, and the parameter expressions that make a stack widen with depth.
 
 ## The studio
 
