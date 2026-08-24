@@ -198,9 +198,32 @@ def _emit_onnx(document: Document, out: Path | None, opset: int) -> None:
 
 
 @app.command()
-def studio() -> None:
-    """Open the graphical editor in a browser. (Phase 3)"""
-    _not_yet("studio", phase=3)
+def studio(
+    path: Annotated[Path | None, typer.Argument(help="Open this .ntb file.")] = None,
+    host: Annotated[
+        str, typer.Option(help="Interface to bind. Loopback by default.")
+    ] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Port to listen on.")] = 8756,
+    open_browser: Annotated[
+        bool, typer.Option("--open/--no-open", help="Open a browser on start.")
+    ] = True,
+) -> None:
+    """Open the graphical editor in a browser."""
+    try:
+        from ntb.server.app import serve
+    except ImportError as exc:
+        typer.secho(
+            "the studio needs the server extra: pip install 'ntb[server]'",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if path is not None and not path.is_file():
+        typer.secho(f"{path}: no such file", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    typer.secho(f"NTB Studio on http://{host}:{port}/  (ctrl-c to stop)", fg=typer.colors.GREEN)
+    serve(path, host=host, port=port, open_browser=open_browser)
 
 
 @app.command()
