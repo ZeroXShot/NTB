@@ -1,0 +1,28 @@
+name: New canonical op
+description: Propose an op for the registry.
+labels: [op]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Proposed name
+      placeholder: ntb.layernorm
+    validations:
+      required: true
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Semantics and shape rule
+      description: What it computes, and how it transforms the input shape.
+    validations:
+      required: true
+  - type: textarea
+    id: mappings
+    attributes:
+      label: Backend mappings
+      description: >
+        torch, Keras 3 and ONNX. An op that cannot reach all three makes
+        documents non-portable and will not be accepted; if one of them is
+        awkward, say how you would express the difference in the mapping.
+    validations:
+      required: true
