@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from ntb.ir.graph import Edge, Generator, Node, Port, PortDirection
+from ntb.ir.graph import Edge, Endpoint, Generator, Node, Port, PortDirection
 from ntb.ir.spatial import SpatialRule
 from ntb.ir.types import Identifier
 
@@ -32,6 +32,14 @@ class Module(BaseModel):
     )
     inputs: tuple[Port, ...] = ()
     outputs: tuple[Port, ...] = ()
+    input_bindings: dict[Identifier, Endpoint] = Field(
+        default_factory=dict,
+        description="Boundary port -> where it lands inside. Unbound ports bind by position.",
+    )
+    output_bindings: dict[Identifier, Endpoint] = Field(
+        default_factory=dict,
+        description="Boundary port -> where it comes from inside.",
+    )
     nodes: tuple[Node, ...] = ()
     edges: tuple[Edge, ...] = ()
     spatial_rules: tuple[SpatialRule, ...] = ()
@@ -52,6 +60,17 @@ class Module(BaseModel):
                 raise ValueError(
                     f"module {self.id!r}: output port {port.name!r} is not an out port"
                 )
+
+        for bindings, ports, role in (
+            (self.input_bindings, self.inputs, "input"),
+            (self.output_bindings, self.outputs, "output"),
+        ):
+            declared = {port.name for port in ports}
+            for name in bindings:
+                if name not in declared:
+                    raise ValueError(
+                        f"module {self.id!r} binds {role} port {name!r}, which it does not declare"
+                    )
         return self
 
     @property
