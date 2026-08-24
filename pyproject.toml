@@ -57,6 +57,9 @@ include = ["src/ntb", "schema", "examples", "tests", "README.md", "LICENSE"]
 line-length = 100
 target-version = "py311"
 src = ["src", "tests"]
+# Golden files are fixtures recording what the emitters produce. Reformatting
+# them here would rewrite the thing under test.
+extend-exclude = ["tests/golden/torch"]
 
 [tool.ruff.lint]
 select = [
@@ -80,6 +83,7 @@ ignore = ["N818"]
 python_version = "3.11"
 strict = true
 files = ["src", "tests"]
+exclude = ["tests/golden/torch"]
 plugins = ["pydantic.mypy"]
 warn_unreachable = true
 enable_error_code = ["redundant-expr", "possibly-undefined", "truthy-bool"]
