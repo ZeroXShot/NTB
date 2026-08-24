@@ -1,0 +1,609 @@
+{
+  "$defs": {
+    "Axis": {
+      "description": "A world axis. ``Z`` is the vertical stacking axis by convention.",
+      "enum": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Axis",
+      "type": "string"
+    },
+    "DType": {
+      "description": "Element types. Closed set: each must exist in torch, Keras 3 and ONNX.",
+      "enum": [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "uint8",
+        "float16",
+        "bfloat16",
+        "float32",
+        "float64",
+        "complex64"
+      ],
+      "title": "DType",
+      "type": "string"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "description": "An authored connection. Rule-derived edges appear only in the core IR.",
+      "properties": {
+        "dst": {
+          "$ref": "#/$defs/Endpoint"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "src": {
+          "$ref": "#/$defs/Endpoint"
+        }
+      },
+      "required": [
+        "id",
+        "src",
+        "dst"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "Endpoint": {
+      "additionalProperties": false,
+      "description": "One end of an edge: a port on a node.",
+      "properties": {
+        "node": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Node",
+          "type": "string"
+        },
+        "port": {
+          "default": "out",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Port",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node"
+      ],
+      "title": "Endpoint",
+      "type": "object"
+    },
+    "Generator": {
+      "additionalProperties": false,
+      "description": "Repeats a module along an axis, parameterising it by the 0-based index ``i``.\n\nKeeps \"N stacked layers\" a single object rather than N copied nodes.",
+      "properties": {
+        "attr_bindings": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Attribute name -> expression in the loop variable `i`.",
+          "title": "Attr Bindings",
+          "type": "object"
+        },
+        "axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "z"
+        },
+        "chain": {
+          "default": true,
+          "description": "Wire instance i into i+1. False lays them out in parallel.",
+          "title": "Chain",
+          "type": "boolean"
+        },
+        "count": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Count",
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "module": {
+          "default": "out",
+          "description": "Id of the Module to instantiate.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Module",
+          "type": "string"
+        },
+        "origin": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin",
+          "type": "array"
+        },
+        "step": {
+          "default": 1.0,
+          "description": "Spacing between consecutive instances along `axis`.",
+          "title": "Step",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "count"
+      ],
+      "title": "Generator",
+      "type": "object"
+    },
+    "Module": {
+      "additionalProperties": false,
+      "description": "A reusable, parameterisable subgraph.\n\nLayers, transformer blocks and whole models are all Modules; NTB hardcodes\nno notion of \"a layer\".",
+      "properties": {
+        "doc": {
+          "default": "",
+          "title": "Doc",
+          "type": "string"
+        },
+        "edges": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Edges",
+          "type": "array"
+        },
+        "generators": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Generator"
+          },
+          "title": "Generators",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "inputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "nodes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Node"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "outputs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "title": "Outputs",
+          "type": "array"
+        },
+        "params": {
+          "additionalProperties": true,
+          "description": "Module-level parameters referenceable from node attributes.",
+          "title": "Params",
+          "type": "object"
+        },
+        "spatial_rules": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SpatialRule"
+          },
+          "title": "Spatial Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "Module",
+      "type": "object"
+    },
+    "Node": {
+      "additionalProperties": false,
+      "description": "One operation, or one instance of a module, placed in space.",
+      "properties": {
+        "attrs": {
+          "additionalProperties": true,
+          "description": "Op attributes, validated against the op's attribute schema.",
+          "title": "Attrs",
+          "type": "object"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "description": "Human label; free text, may be empty.",
+          "title": "Name",
+          "type": "string"
+        },
+        "op": {
+          "description": "Registry op name, or 'ntb.module' to instantiate a Module.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Op",
+          "type": "string"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "ports": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Port"
+          },
+          "title": "Ports",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "op"
+      ],
+      "title": "Node",
+      "type": "object"
+    },
+    "Orientation": {
+      "description": "Which way a block faces, i.e. along which axis it consumes and produces.",
+      "enum": [
+        "along_x",
+        "along_y",
+        "along_z"
+      ],
+      "title": "Orientation",
+      "type": "string"
+    },
+    "Placement": {
+      "additionalProperties": false,
+      "description": "Where a node sits. ``pos`` is the block centre, ``extent`` its size.",
+      "properties": {
+        "extent": {
+          "default": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Extent",
+          "type": "array"
+        },
+        "orient": {
+          "$ref": "#/$defs/Orientation",
+          "default": "along_x"
+        },
+        "pos": {
+          "default": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Pos",
+          "type": "array"
+        }
+      },
+      "title": "Placement",
+      "type": "object"
+    },
+    "Port": {
+      "additionalProperties": false,
+      "description": "A named connection point. Ops declare ports; nodes only carry pinned ones.",
+      "properties": {
+        "direction": {
+          "$ref": "#/$defs/PortDirection"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "optional": {
+          "default": false,
+          "title": "Optional",
+          "type": "boolean"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TensorType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Author-pinned type. None means 'infer me'."
+        }
+      },
+      "required": [
+        "name",
+        "direction"
+      ],
+      "title": "Port",
+      "type": "object"
+    },
+    "PortDirection": {
+      "enum": [
+        "in",
+        "out"
+      ],
+      "title": "PortDirection",
+      "type": "string"
+    },
+    "SpatialRule": {
+      "additionalProperties": false,
+      "description": "Derives edges from where its ``members`` sit. Never invents nodes.\n\nResolution is deterministic: same placements, same edges, same order.",
+      "properties": {
+        "axis": {
+          "$ref": "#/$defs/Axis",
+          "default": "z"
+        },
+        "bidirectional": {
+          "default": false,
+          "description": "NEIGHBORHOOD and LATTICE only; the ordered kinds would cycle.",
+          "title": "Bidirectional",
+          "type": "boolean"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "input_port": {
+          "default": "in",
+          "description": "Port on the target node that generated edges arrive at.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Input Port",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SpatialRuleKind"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "members": {
+          "description": "Ids of the nodes this rule wires, within the owning module.",
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+            "type": "string"
+          },
+          "title": "Members",
+          "type": "array"
+        },
+        "output_port": {
+          "default": "out",
+          "description": "Port on the source node that generated edges leave from.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "title": "Output Port",
+          "type": "string"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Euclidean radius for NEIGHBORHOOD; ignored by other kinds.",
+          "title": "Radius"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "members"
+      ],
+      "title": "SpatialRule",
+      "type": "object"
+    },
+    "SpatialRuleKind": {
+      "description": "The closed set of ways geometry may generate connectivity.",
+      "enum": [
+        "vertical_stack",
+        "axis_projection",
+        "neighborhood",
+        "lattice"
+      ],
+      "title": "SpatialRuleKind",
+      "type": "string"
+    },
+    "TensorType": {
+      "additionalProperties": false,
+      "description": "The static type of a value flowing along an edge.",
+      "properties": {
+        "dtype": {
+          "$ref": "#/$defs/DType",
+          "default": "float32"
+        },
+        "layout": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Informational hint ('NCHW'); the op registry defines the truth.",
+          "title": "Layout"
+        },
+        "shape": {
+          "default": [],
+          "items": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "title": "Shape",
+          "type": "array"
+        }
+      },
+      "title": "TensorType",
+      "type": "object"
+    }
+  },
+  "$id": "https://ntb.dev/schema/ntb-ir-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A complete `.ntb` file.\n\nStructural validation only; semantic validation lives in :mod:`ntb.validate`.",
+  "properties": {
+    "doc": {
+      "default": "",
+      "title": "Doc",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "modules": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Module"
+      },
+      "title": "Modules",
+      "type": "array"
+    },
+    "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+    },
+    "ntb_version": {
+      "default": "",
+      "title": "Ntb Version",
+      "type": "string"
+    },
+    "root": {
+      "default": "out",
+      "description": "Id of the module that is the model itself.",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "Document",
+  "type": "object"
+}
