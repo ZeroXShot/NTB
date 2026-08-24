@@ -59,10 +59,10 @@ class TestSession:
         assert derived.code == ""
         assert derived.code_error
 
-    def test_a_document_with_generators_still_reports(self) -> None:
-        # vertical_tower does not resolve until phase 4; the studio must not choke.
+    def test_a_document_with_generators_reports_every_instance(self) -> None:
         session = Session(io.load(EXAMPLES / "vertical_tower.ntb"))
-        assert session.derived().types == {}
+        types = session.derived().types
+        assert types["stack-0/fc.out"] == types["stack-11/fc.out"] == "float32[batch, 256]"
 
     def test_saving_and_reopening_round_trips(self, session: Session, tmp_path: Path) -> None:
         target = tmp_path / "saved.ntb"
