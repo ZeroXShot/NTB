@@ -25,6 +25,32 @@ without destabilising the emitters.
 `ntb resolve model.ntb` prints the result, marking every edge that geometry
 produced rather than a person.
 
+## Module boundaries
+
+A module declares ports; something inside has to be behind each one. NTB binds
+them two ways, and the order matters:
+
+1. **Explicitly**, when the module says so:
+
+   ```json
+   "input_bindings":  {"x": {"node": "norm1", "port": "in"}},
+   "output_bindings": {"y": {"node": "res2",  "port": "out"}}
+   ```
+
+2. **By position**, for every port left unbound: the free ports of the module's
+   *terminal* members, in declaration order. A member offers inputs only if
+   nothing feeds any of its inputs, and outputs only if nothing consumes any of
+   its outputs.
+
+Positional binding keeps small modules short, and it is silent — which is a
+problem exactly when a module has more than one plausible answer. A transformer
+block leaves attention's `weights` output unconsumed, and before the terminal
+test existed the block returned the attention weights instead of the residual.
+`examples/transformer_block.ntb` now writes its binding down.
+
+The rule: **bind the port whenever you would have to think about it.** The Space
+panel in the studio has a field per port; leaving it on `auto` means positional.
+
 ## Spatial rules
 
 A rule reads where its members sit and produces edges. It never invents blocks.
