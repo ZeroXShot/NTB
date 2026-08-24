@@ -84,10 +84,13 @@ ATTENTION = register(
         keras=BackendMapping(
             target="keras.layers.MultiHeadAttention",
             attr_map={"num_heads": "num_heads", "dropout": "dropout", "bias": "use_bias"},
+            derived={"key_dim": "embed_dim // num_heads"},
+            call_constants={"return_attention_scores": True},
             default_inputs={"key": "query", "value": "key"},
             input_kwargs={"mask": "attention_mask"},
             imports=("keras",),
-            notes="Takes key_dim = embed_dim // num_heads; the emitter divides.",
+            notes="key_dim is embed_dim // num_heads; scores are returned so the "
+            "second NTB output exists.",
         ),
         onnx=OnnxMapping(
             op_type="Attention",
