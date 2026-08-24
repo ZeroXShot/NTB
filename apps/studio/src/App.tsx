@@ -3,21 +3,28 @@
 // Every edit here is a command sent to the server, and every pixel is drawn
 // from the snapshot it sends back.
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import {
+  addGenerator,
   addNode,
+  addRule,
   connectNodes,
   moveNode,
+  removeGenerator,
   removeNode,
+  removeRule,
   renameNode,
   setAttrs,
+  updateGenerator,
+  updateRule,
 } from "./commands";
 import { Inspector } from "./panels/Inspector";
 import { Output } from "./panels/Output";
 import { Palette } from "./panels/Palette";
+import { Spatial } from "./panels/Spatial";
 import { Canvas } from "./scene/Canvas";
-import type { SceneEdge, SceneNode } from "./scene/graph";
+import type { SceneEdge, SceneNode, ViewMode } from "./scene/graph";
 import { findNode, rootModule, useStudio } from "./store";
 import type { OpInfo } from "./types";
 
@@ -36,6 +43,7 @@ export function App(): JSX.Element {
     clearError,
     setLinkFrom,
   } = useStudio();
+  const [mode, setMode] = useState<ViewMode>("2d");
 
   useEffect(connect, [connect]);
 
@@ -46,31 +54,43 @@ export function App(): JSX.Element {
   const status = useMemo(() => {
     const worst = new Map<string, "warning" | "error">();
     for (const diagnostic of snapshot?.derived.diagnostics ?? []) {
-      if (!diagnostic.node) continue;
-      if (diagnostic.severity === "error") worst.set(diagnostic.node, "error");
-      else if (diagnostic.severity === "warning" && !worst.has(diagnostic.node)) {
-        worst.set(diagnostic.node, "warning");
-      }
+      // Colour the block the problem is inside, which for a generated cell is
+      // the repetition, not the module it was stamped from.
+      const key = diagnostic.block ?? diagnostic.node;
+      if (!key) continue;
+      if (diagnostic.severity === "error") worst.set(key, "error");
+      else if (diagnostic.severity === "warning" && !worst.has(key)) worst.set(key, "warning");
     }
     return worst;
   }, [snapshot]);
 
+  // The scene draws the server's spatial preview, not the raw node list: a
+  // generator's repetitions and a rule's edges exist only there.
   const nodes: SceneNode[] = useMemo(
     () =>
-      (module?.nodes ?? []).map((node) => ({
-        id: node.id,
-        label: node.name || node.id,
-        pos: node.placement?.pos ?? [0, 0, 0],
-        extent: node.placement?.extent ?? [1, 1, 1],
-        status: status.get(node.id) ?? "ok",
+      (snapshot?.derived.blocks ?? []).map((block) => ({
+        id: block.key,
+        label: block.label,
+        pos: block.pos,
+        extent: block.extent,
+        status: status.get(block.key) ?? "ok",
+        kind: block.kind,
       })),
-    [module, status],
+    [snapshot, status],
   );
 
   const edges: SceneEdge[] = useMemo(
-    () => (module?.edges ?? []).map((edge) => ({ id: edge.id, from: edge.src.node, to: edge.dst.node })),
-    [module],
+    () =>
+      (snapshot?.derived.links ?? []).map((link, index) => ({
+        id: `${link.kind}-${index}`,
+        from: link.src,
+        to: link.dst,
+        kind: link.kind,
+      })),
+    [snapshot],
   );
+
+  const derivedCount = edges.filter((edge) => edge.kind !== "edge").length;
 
   const place = useCallback(
     (op: OpInfo) => {
@@ -162,6 +182,17 @@ export function App(): JSX.Element {
           Redo
         </button>
         <span className="spacer" />
+        <div className="modes">
+          {(["2d", "3d"] as const).map((option) => (
+            <button
+              key={option}
+              className={mode === option ? "on" : ""}
+              onClick={() => setMode(option)}
+            >
+              {option.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <span className={connected ? "link on" : "link"}>{connected ? "live" : "offline"}</span>
       </header>
 
@@ -172,26 +203,52 @@ export function App(): JSX.Element {
           nodes={nodes}
           edges={edges}
           selection={selection}
+          mode={mode}
           onSelect={onSelect}
           onMove={(id, pos) => module && run(moveNode(module, id, pos))}
         />
         <div className="hint">
           {linkFrom
             ? `connecting from ${linkFrom} — click the target block, escape to cancel`
-            : "drag to move · c to start a connection · del to remove"}
+            : mode === "2d"
+              ? "drag to move · c to connect · del to remove"
+              : "drag the background to orbit · alt-drag a block to lift it along Z"}
+        </div>
+        <div className="legend">
+          <span className="swatch edge" /> drawn
+          <span className="swatch rule" /> from a rule
+          <span className="swatch chain" /> from a generator
+          {derivedCount > 0 && <em>{derivedCount} edges nobody drew</em>}
         </div>
       </main>
 
       <Inspector
         node={selected}
+        block={(snapshot?.derived.blocks ?? []).find((b) => b.key === selection[0])}
         op={selected ? opsByName.get(selected.op) : undefined}
         snapshot={snapshot}
         onRename={(name) => module && selected && run(renameNode(module, selected.id, name))}
         onAttrs={(attrs) => module && selected && run(setAttrs(module, selected.id, attrs))}
+        onMove={(pos) => module && selected && run(moveNode(module, selected.id, pos))}
         onDelete={remove}
       />
 
-      <Output snapshot={snapshot} onSelect={(nodeId) => select(nodeId, false)} />
+      <Output
+        snapshot={snapshot}
+        onSelect={(nodeId) => select(nodeId, false)}
+        spatial={
+          <Spatial
+            module={module}
+            modules={snapshot?.document.modules ?? []}
+            onGenerator={(generator) => module && run(updateGenerator(module, generator))}
+            onRule={(rule) => module && run(updateRule(module, rule))}
+            onAddGenerator={(generator) => module && run(addGenerator(module, generator))}
+            onAddRule={(rule) => module && run(addRule(module, rule))}
+            onRemoveGenerator={(id) => module && run(removeGenerator(module, id))}
+            onRemoveRule={(id) => module && run(removeRule(module, id))}
+          />
+        }
+      />
 
       {error && (
         <div className="toast" role="alert" onClick={clearError}>
