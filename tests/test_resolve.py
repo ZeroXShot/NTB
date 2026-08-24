@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
+from pydantic import ValidationError
 
 from ntb.ir import Document, Edge, Endpoint, Module, Node, Port, PortDirection, TensorType, io
 from ntb.ir.types import DType
@@ -126,3 +129,77 @@ class TestShippedExamples:
         assert graph.inputs
         assert graph.outputs
         graph.topological_order()
+
+
+class TestBoundaryBindings:
+    """A module can say where its ports land instead of leaving it to position."""
+
+    def two_candidates(self, **bindings: Any) -> Document:
+        module = Module(
+            id="m",
+            inputs=(
+                Port(name="x", direction=PortDirection.IN, type=TensorType(shape=("batch", 4))),
+            ),
+            outputs=(Port(name="y", direction=PortDirection.OUT),),
+            nodes=(Node(id="first", op="ntb.relu"), Node(id="second", op="ntb.gelu")),
+            **bindings,
+        )
+        return Document(root="m", modules=(module,))
+
+    def test_without_a_binding_the_first_free_port_wins(self) -> None:
+        graph = resolve(self.two_candidates())
+        assert str(graph.inputs[0].endpoint) == "first.in"
+        assert str(graph.outputs[0].endpoint) == "first.out"
+
+    def test_a_binding_overrides_position(self) -> None:
+        graph = resolve(
+            self.two_candidates(
+                input_bindings={"x": Endpoint(node="second", port="in")},
+                output_bindings={"y": Endpoint(node="second", port="out")},
+            )
+        )
+        assert str(graph.inputs[0].endpoint) == "second.in"
+        assert str(graph.outputs[0].endpoint) == "second.out"
+
+    def test_an_unbound_port_still_binds_by_position(self) -> None:
+        # Mixing the two is the point: bind what is ambiguous, leave the rest.
+        graph = resolve(
+            self.two_candidates(output_bindings={"y": Endpoint(node="second", port="out")})
+        )
+        assert str(graph.inputs[0].endpoint) == "first.in"
+        assert str(graph.outputs[0].endpoint) == "second.out"
+
+    def test_a_bound_port_is_not_offered_to_the_positional_pass(self) -> None:
+        module = Module(
+            id="m",
+            outputs=(
+                Port(name="a", direction=PortDirection.OUT),
+                Port(name="b", direction=PortDirection.OUT),
+            ),
+            nodes=(Node(id="first", op="ntb.relu"), Node(id="second", op="ntb.gelu")),
+            output_bindings={"a": Endpoint(node="second", port="out")},
+        )
+        graph = resolve(Document(root="m", modules=(module,)))
+        assert {o.name: str(o.endpoint) for o in graph.outputs} == {
+            "a": "second.out",
+            "b": "first.out",
+        }
+
+    def test_a_binding_to_an_unknown_node_is_refused(self) -> None:
+        with pytest.raises(ResolveError, match=r"binds output port 'y' to unknown node 'ghost'"):
+            resolve(self.two_candidates(output_bindings={"y": Endpoint(node="ghost")}))
+
+    def test_a_binding_to_an_unknown_port_is_refused(self) -> None:
+        with pytest.raises(ResolveError, match="has no output port 'nope'"):
+            resolve(self.two_candidates(output_bindings={"y": Endpoint(node="first", port="nope")}))
+
+    def test_binding_a_port_the_module_does_not_declare_is_refused(self) -> None:
+        with pytest.raises(ValidationError, match="binds output port 'ghost'"):
+            Module(id="m", output_bindings={"ghost": Endpoint(node="a")})
+
+    def test_the_transformer_example_says_where_its_output_comes_from(self) -> None:
+        # Attention leaves an unconsumed second output, which is exactly the
+        # case where the positional rule is a coin toss worth not tossing.
+        document = io.load(EXAMPLES / "transformer_block.ntb")
+        assert document.root_module.output_bindings["y"].node == "res2"
+        assert str(resolve(document).outputs[0].endpoint) == "res2.out"
