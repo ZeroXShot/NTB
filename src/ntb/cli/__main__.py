@@ -1,8 +1,4 @@
-"""The `ntb` command line.
-
-Unimplemented commands are declared as explicit "not yet" errors so `--help`
-shows the shape of the finished tool.
-"""
+"""The `ntb` command line."""
 
 from __future__ import annotations
 
@@ -292,9 +288,108 @@ def studio(
 
 
 @app.command()
-def run() -> None:
-    """Train a model from a document and stream metrics. (Phase 6)"""
-    _not_yet("run", phase=6)
+def run(
+    path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
+    epochs: Annotated[int, typer.Option(help="Passes over the data.")] = 1,
+    steps: Annotated[int, typer.Option(help="Steps per epoch, synthetic data only.")] = 50,
+    batch_size: Annotated[int, typer.Option(help="Examples per step.")] = 32,
+    lr: Annotated[float, typer.Option(help="Learning rate.")] = 1e-3,
+    optimiser: Annotated[str, typer.Option(help="sgd, adam or adamw.")] = "adam",
+    loss: Annotated[str, typer.Option(help="mse, cross_entropy or bce.")] = "mse",
+    device: Annotated[str, typer.Option(help="cpu, cuda, cuda:1 ...")] = "cpu",
+    data_script: Annotated[
+        Path | None, typer.Option(help="Python file exposing dataloaders(batch_size).")
+    ] = None,
+    checkpoint_every: Annotated[int, typer.Option(help="Steps between checkpoints.")] = 0,
+    root: Annotated[Path, typer.Option(help="Where runs are kept.")] = Path("runs"),
+    seed: Annotated[int, typer.Option(help="Seed for torch and the synthetic data.")] = 0,
+) -> None:
+    """Train a model from a document, in a process of its own."""
+    from ntb.runs import DataSource, Loss, Optimiser, RunConfig, RunError, RunManager
+
+    try:
+        config = RunConfig(
+            document=path,
+            epochs=epochs,
+            steps_per_epoch=steps,
+            batch_size=batch_size,
+            learning_rate=lr,
+            optimiser=Optimiser(optimiser),
+            loss=Loss(loss),
+            device=device,
+            data=DataSource.SCRIPT if data_script else DataSource.SYNTHETIC,
+            data_script=data_script,
+            checkpoint_every=checkpoint_every,
+            seed=seed,
+        )
+    except ValueError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2) from exc
+
+    def show(_: str, event: dict[str, object]) -> None:
+        kind = event.get("event")
+        if kind == "metric":
+            typer.echo(
+                f"  step {event['step']:>6}  epoch {event['epoch']:>3}  "
+                f"{event['name']} {float(event['value']):.5f}"  # type: ignore[arg-type]
+            )
+        elif kind == "checkpoint":
+            typer.secho(f"  checkpoint {event['path']}", fg=typer.colors.BLUE)
+        elif kind == "output":
+            typer.echo(f"  {event['text']}")
+
+    manager = RunManager(root, listener=show)
+    try:
+        started = manager.start(config)
+    except RunError as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.secho(f"run {started.id} started", fg=typer.colors.GREEN)
+    final = manager.wait(started.id)
+    manager.close()
+
+    if final.error:
+        typer.secho(
+            f"run {final.id} {final.status.value}: {final.error}", fg=typer.colors.RED, err=True
+        )
+        raise typer.Exit(code=1)
+    typer.secho(
+        f"run {final.id} {final.status.value} after {final.last_step} steps", fg=typer.colors.GREEN
+    )
+
+
+@app.command()
+def runs(
+    root: Annotated[Path, typer.Option(help="Where runs are kept.")] = Path("runs"),
+    show: Annotated[str | None, typer.Option(help="Print one run's metrics.")] = None,
+    limit: Annotated[int, typer.Option(help="How many runs to list.")] = 20,
+) -> None:
+    """List training runs, or print the metrics of one."""
+    from ntb.runs import RunManager
+
+    manager = RunManager(root)
+    try:
+        if show is not None:
+            record = manager.get(show)
+            if record is None:
+                typer.secho(f"no run {show!r} under {root}", fg=typer.colors.RED, err=True)
+                raise typer.Exit(code=1)
+            typer.echo(f"{record.id}  {record.status.value}  {record.document}")
+            if record.error:
+                typer.secho(record.error, fg=typer.colors.RED, err=True)
+            for row in manager.metrics(record.id):
+                typer.echo(f"  step {row['step']:>6}  loss {row['value']:.5f}")
+            return
+
+        for record in manager.recent(limit):
+            marker = {"done": "*", "failed": "!", "running": ">"}.get(record.status.value, "-")
+            typer.echo(
+                f"{marker} {record.id}  {record.status.value:<8} {record.last_step:>6} steps  "
+                f"{Path(record.document).name}"
+            )
+    finally:
+        manager.close()
 
 
 def _load(path: Path) -> Document:
@@ -303,15 +398,6 @@ def _load(path: Path) -> Document:
     except io.DocumentError as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
-
-
-def _not_yet(command: str, *, phase: int) -> None:
-    typer.secho(
-        f"`ntb {command}` is not implemented yet; it ships in phase {phase}. See docs/roadmap.md.",
-        fg=typer.colors.YELLOW,
-        err=True,
-    )
-    raise typer.Exit(code=2)
 
 
 if __name__ == "__main__":  # pragma: no cover
