@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from tests.conftest import EXAMPLES
 
 from ntb.ir import Document, Edge, Endpoint, Module, Node, Port, PortDirection, TensorType, io
 from ntb.validate import Code, Severity, validate
+from tests.conftest import EXAMPLES
 
 
 def document(*nodes: Node, edges: tuple[Edge, ...] = ()) -> Document:
