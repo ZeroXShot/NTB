@@ -30,11 +30,30 @@ mypy
 Python 3.11+ on any of Linux, macOS or Windows. CI runs all three across 3.11,
 3.12 and 3.13.
 
+## Working on the studio
+
+The frontend lives in `apps/studio` (TypeScript, React, three.js) and builds
+into `src/ntb/_static`, which the wheel ships and git ignores.
+
+```bash
+cd apps/studio && npm install
+npm run build          # writes the bundle the Python server serves
+npm run dev            # vite on :5173, proxying to a running `ntb studio`
+```
+
+`npm run dev` expects `ntb studio --no-open` running on port 8756.
+
+`src/ir.gen.ts` is generated from `schema/ntb-ir-v1.json` by `npm run types`.
+Do not edit it; CI fails if it is stale.
+
+Two things the studio must never do: keep its own copy of a document (the server
+is authoritative), or decide what an op is (that comes from `/api/ops`).
+
 ## Adding a canonical op
 
 This is the most useful contribution right now, and it is a declaration:
 
-1. Add an `OpSpec` to `src/ntb/ops/builtin.py` with its ports, attributes, shape
+1. Add an `OpSpec` under `src/ntb/ops/builtin/` with its ports, attributes, shape
    rule and **all three** backend mappings. An op that only reaches one backend
    makes documents non-portable, and the test suite rejects it.
 2. Add shape-rule cases to `tests/test_ops.py`: at least one concrete shape, one
@@ -48,8 +67,8 @@ Error messages are part of the feature. `input has 3 channels, but in_channels i
 ## Before opening a PR
 
 * `pytest -q`, `ruff check .`, `ruff format .`, `mypy` all clean.
-* If you touched `src/ntb/ir/`, run `ntb schema --write` and commit the result —
-  CI fails on a stale schema.
+* If you touched `src/ntb/ir/`, run `ntb schema --write` and commit the result,
+  then `npm run types` in `apps/studio` — CI fails on either being stale.
 * If you touched `examples/*.ntb`, re-save them through `ntb.ir.io` rather than
   editing by hand; the canonical-format test will catch it otherwise.
 * One logical change per PR. A refactor and a feature in one diff is two PRs.
