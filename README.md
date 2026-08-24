@@ -27,7 +27,12 @@ three dimensions expressible at all.
 ```bash
 git clone https://github.com/ZeroXShot/NTB && cd NTB
 pip install -e ".[all]"    # torch, Keras 3, ONNX and the studio server
+cd apps/studio && npm install && npm run build && cd ../..
 ```
+
+That last line is only for a source checkout. The studio bundle is build output
+and is not in git, so without it `ntb studio` serves a page saying so. A
+released wheel ships the bundle already built and needs no Node.
 
 Extras are `torch`, `keras`, `onnx`, `server` and `all`; the core installs
 without any of them and can still author, validate and inspect a model. Keras 3
