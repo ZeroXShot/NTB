@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import {
   addGenerator,
+  bindPort,
   addNode,
   addRule,
   connectNodes,
@@ -246,6 +247,9 @@ export function App(): JSX.Element {
             onAddRule={(rule) => module && run(addRule(module, rule))}
             onRemoveGenerator={(id) => module && run(removeGenerator(module, id))}
             onRemoveRule={(id) => module && run(removeRule(module, id))}
+            onBind={(direction, port, endpoint) =>
+              module && run(bindPort(module, direction, port, endpoint))
+            }
           />
         }
       />
