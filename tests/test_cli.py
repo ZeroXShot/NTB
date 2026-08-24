@@ -92,17 +92,25 @@ def test_shapes_prints_every_port() -> None:
     assert "head.out  float32[batch, 10]" in result.stdout
 
 
-def test_shapes_refuses_a_document_it_cannot_lower_yet() -> None:
+def test_shapes_follows_a_generator_through_its_instances() -> None:
     result = runner.invoke(app, ["shapes", str(EXAMPLES / "vertical_tower.ntb")])
-    assert result.exit_code == 1
-    assert "phase 4" in result.output
+    assert result.exit_code == 0
+    assert "stack-11/act.out  float32[batch, 256]" in result.stdout
 
 
-def test_validate_strict_turns_warnings_into_failure() -> None:
-    lenient = runner.invoke(app, ["validate", str(EXAMPLES / "vertical_tower.ntb")])
-    strict = runner.invoke(app, ["validate", "--strict", str(EXAMPLES / "vertical_tower.ntb")])
-    assert lenient.exit_code == 0
-    assert strict.exit_code == 1
+def test_validate_strict_turns_warnings_into_failure(tmp_path: Path) -> None:
+    from ntb.ir import Document, Module, Node, Port, PortDirection, TensorType, io
+
+    # A model with no output port: worth a warning, not worth refusing to open.
+    module = Module(
+        id="m",
+        inputs=(Port(name="x", direction=PortDirection.IN, type=TensorType(shape=("batch", 8))),),
+        nodes=(Node(id="a", op="ntb.relu"),),
+    )
+    path = tmp_path / "no-output.ntb"
+    io.save(Document(root="m", modules=(module,)), path)
+    assert runner.invoke(app, ["validate", str(path)]).exit_code == 0
+    assert runner.invoke(app, ["validate", "--strict", str(path)]).exit_code == 1
 
 
 def test_emit_writes_torch_to_a_file(tmp_path: Path) -> None:
@@ -124,9 +132,10 @@ def test_emit_refuses_a_backend_that_is_not_ready() -> None:
     assert "phase 5" in result.output
 
 
-def test_emit_refuses_a_document_it_cannot_lower() -> None:
+def test_emit_expands_a_generator_into_real_layers() -> None:
     result = runner.invoke(app, ["emit", str(EXAMPLES / "vertical_tower.ntb")])
-    assert result.exit_code == 1
+    assert result.exit_code == 0
+    assert result.stdout.count("torch.nn.Linear(") == 12
 
 
 def test_emit_onnx_writes_a_model(tmp_path: Path) -> None:
