@@ -26,6 +26,21 @@ def document(*nodes: Node, edges: tuple[Edge, ...] = ()) -> Document:
     return Document(root="m", modules=(module,))
 
 
+class TestBoundaryBindings:
+    def test_a_binding_to_an_unknown_node_is_an_error(self) -> None:
+        from ntb.ir import Endpoint
+
+        module = Module(
+            id="m",
+            outputs=(Port(name="y", direction=PortDirection.OUT),),
+            nodes=(Node(id="a", op="ntb.relu"),),
+            output_bindings={"y": Endpoint(node="ghost")},
+        )
+        report = validate(Document(root="m", modules=(module,)))
+        assert Code.STRUCTURE in report.codes()
+        assert "bound to unknown node 'ghost'" in str(report.errors[0])
+
+
 class TestShippedExamples:
     @pytest.mark.parametrize("name", ["mlp.ntb", "transformer_block.ntb", "cnn3d.ntb"])
     def test_example_is_clean(self, name: str) -> None:
