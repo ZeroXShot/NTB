@@ -149,6 +149,34 @@ def shapes(
         raise typer.Exit(code=1)
 
 
+@app.command("resolve")
+def resolve_command(
+    path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
+    edges: Annotated[
+        bool, typer.Option("--edges/--no-edges", help="List the lowered edges too.")
+    ] = True,
+) -> None:
+    """Lower a document and show what generators and spatial rules produced."""
+    document = _load(path)
+    try:
+        graph = resolve(document)
+    except (NotResolvable, ResolveError) as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"{graph.name}: {len(graph.nodes)} nodes, {len(graph.edges)} edges")
+    for node in graph.nodes:
+        typer.echo(f"  {node.id:<28} {node.op:<16} from {node.origin}")
+    if not edges:
+        return
+    for edge in graph.edges:
+        # Where an edge came from is the thing worth seeing: an edge nobody drew
+        # is the whole point of a spatial rule, and also the thing to debug.
+        derived = edge.origin.rule or edge.origin.generator
+        marker = typer.style(f"  via {derived}", fg=typer.colors.CYAN) if derived else ""
+        typer.echo(f"  {edge.src!s:<28} -> {edge.dst!s:<28}{marker}")
+
+
 @app.command()
 def emit(
     path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
