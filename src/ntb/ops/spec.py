@@ -108,12 +108,23 @@ class ShapeContext:
     op: str
     attrs: Mapping[str, Any]
     inputs: Mapping[str, TensorType]
+    #: Types arriving at a variadic port, in edge order.
+    variadic: Mapping[str, tuple[TensorType, ...]] = field(default_factory=dict)
 
     def input(self, name: str) -> TensorType:
         try:
             return self.inputs[name]
         except KeyError:
             raise ShapeRuleError(f"{self.op}: required input {name!r} is not connected") from None
+
+    def many(self, name: str) -> tuple[TensorType, ...]:
+        """Every type on a variadic port. A single edge is a list of one."""
+        arriving = self.variadic.get(name) or ()
+        if not arriving and name in self.inputs:
+            arriving = (self.inputs[name],)
+        if not arriving:
+            raise ShapeRuleError(f"{self.op}: nothing is connected to {name!r}")
+        return arriving
 
     def attr(self, name: str) -> Any:
         try:
@@ -226,6 +237,9 @@ class ParityCase:
     integer_inputs: tuple[str, ...] = ()
     #: Upper bound for those indices.
     index_limit: int = 8
+    #: Shapes to fan into a variadic port. The harness feeds each through its
+    #: own node, since a graph input can only land on a port once.
+    fan_in: Mapping[str, tuple[tuple[int, ...], ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
