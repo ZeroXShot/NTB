@@ -48,6 +48,17 @@ _FUNCTIONS: dict[str, Callable[..., Any]] = {
     "int": int,
     "float": float,
     "round": round,
+    "len": len,
+    "sum": sum,
+}
+
+_COMPARISONS: dict[type[ast.cmpop], Callable[[Any, Any], Any]] = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
 }
 
 
@@ -104,7 +115,8 @@ def _eval(node: ast.expr, params: Mapping[str, Any], text: str) -> Any:
             known = ", ".join(sorted(params)) or "none"
             raise ExpressionError(f"{text!r} uses unknown parameter {node.id!r}; known: {known}")
         value = params[node.id]
-        if not isinstance(value, (int, float)):
+        # Lists are allowed only as something to measure: `len(kernel_size)`.
+        if not isinstance(value, (int, float, list, tuple)):
             raise ExpressionError(f"parameter {node.id!r} is not a number")
         return value
 
@@ -120,12 +132,22 @@ def _eval(node: ast.expr, params: Mapping[str, Any], text: str) -> Any:
             return function(left, right)
         except ZeroDivisionError as exc:
             raise ExpressionError(f"{text!r} divides by zero") from exc
+        except TypeError as exc:
+            raise ExpressionError(f"{text!r}: {exc}") from exc
 
     if isinstance(node, ast.UnaryOp):
         unary = _UNARY.get(type(node.op))
         if unary is None:
             raise ExpressionError(f"{text!r} uses a unary operator that is not allowed")
         return unary(_eval(node.operand, params, text))
+
+    if isinstance(node, ast.Compare):
+        if len(node.ops) != 1 or len(node.comparators) != 1:
+            raise ExpressionError(f"{text!r} chains comparisons, which is not allowed")
+        compare = _COMPARISONS.get(type(node.ops[0]))
+        if compare is None:
+            raise ExpressionError(f"{text!r} uses a comparison that is not allowed")
+        return compare(_eval(node.left, params, text), _eval(node.comparators[0], params, text))
 
     if isinstance(node, ast.Call):
         name = node.func.id if isinstance(node.func, ast.Name) else ""
