@@ -3,11 +3,12 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.3.0, early.** The IR, a 31-op registry, symbolic shape inference,
+> **Status: 0.4.0, early.** The IR, a 31-op registry, symbolic shape inference,
 > validation, all three backends (torch, Keras 3, ONNX), ONNX import, the studio
-> in 2D and 3D, and the spatial semantics that make the project worth building
-> all work today. Training inside NTB and the MCP server are next. See
-> [the roadmap](docs/roadmap.md). Nothing is on PyPI until every phase is done.
+> in 2D and 3D, the spatial semantics that make the project worth building, and
+> training with live curves all work today. The MCP server and the plugin SDK
+> are what is left. See [the roadmap](docs/roadmap.md). Nothing is on PyPI until
+> every phase is done.
 
 ## Why another model builder
 
@@ -53,6 +54,8 @@ ntb emit examples/mlp.ntb                # readable PyTorch source
 ntb emit examples/mlp.ntb --backend keras
 ntb emit examples/mlp.ntb --backend onnx --out mlp.onnx
 ntb import mlp.onnx --out seeded.ntb     # seed a document from a model you have
+ntb run examples/mlp.ntb --epochs 3 --loss cross_entropy
+ntb runs                                 # what has run, and how it went
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
@@ -116,6 +119,22 @@ there is exactly what `ntb emit` would write.
 The server binds loopback and refuses requests from any other origin: it can
 read and write files, and a page on the internet must not be able to drive it
 ([ADR 10](docs/adr/0010-the-studio-server-is-local-only.md)).
+
+## Training
+
+```bash
+ntb run examples/mlp.ntb --epochs 3 --loss cross_entropy
+```
+
+A run happens in a process of its own, so an out-of-memory kills the run and not
+the editor, and *stop* actually stops. Metrics go to SQLite, so a run outlives
+the session that started it. The studio's **Train** tab starts one and draws the
+loss as it arrives.
+
+Without a data script the data is synthetic — random tensors shaped like the
+model's own inputs. That answers *does this architecture train, and how fast*,
+which is the question you have while you are still drawing it, and nothing else.
+[docs/training.md](docs/training.md) covers bringing your own.
 
 ## How it fits together
 
