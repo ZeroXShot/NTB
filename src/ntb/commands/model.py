@@ -12,8 +12,8 @@ from typing import Annotated, Any, Literal, TypeAlias, TypeVar
 from pydantic import BaseModel, ConfigDict, Field
 
 from ntb.ir.document import Document, Module
-from ntb.ir.graph import Edge, Node, Port, PortDirection
-from ntb.ir.spatial import Placement
+from ntb.ir.graph import Edge, Generator, Node, Port, PortDirection
+from ntb.ir.spatial import Placement, SpatialRule
 from ntb.ir.types import Identifier
 
 M = TypeVar("M", bound=BaseModel)
@@ -161,6 +161,116 @@ class Disconnect(Command):
         return _put(document, updated), inverse
 
 
+class AddGenerator(Command):
+    """Add a generator: N repetitions of a module through space, as one object."""
+
+    kind: Literal["add_generator"] = "add_generator"
+    module: Identifier
+    generator: Generator
+    index: int | None = None
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        if any(g.id == self.generator.id for g in module.generators):
+            raise CommandError(
+                f"module {self.module!r} already has a generator {self.generator.id!r}"
+            )
+        generators = _insert(module.generators, self.generator, self.index)
+        inverse = RemoveGenerator(module=self.module, generator=self.generator.id)
+        return _put(document, _rebuild(module, generators=generators)), inverse
+
+
+class RemoveGenerator(Command):
+    """Remove a generator and everything it was producing."""
+
+    kind: Literal["remove_generator"] = "remove_generator"
+    module: Identifier
+    generator: Identifier
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        found = _find(module.generators, self.generator, "generator", module.id)
+        index = module.generators.index(found)
+        updated = _rebuild(
+            module, generators=tuple(g for g in module.generators if g.id != self.generator)
+        )
+        inverse = AddGenerator(module=self.module, generator=found, index=index)
+        return _put(document, updated), inverse
+
+
+class UpdateGenerator(Command):
+    """Replace a generator in place. Its id is what keeps it the same object."""
+
+    kind: Literal["update_generator"] = "update_generator"
+    module: Identifier
+    generator: Generator
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        found = _find(module.generators, self.generator.id, "generator", module.id)
+        updated = _rebuild(
+            module,
+            generators=tuple(
+                self.generator if g.id == self.generator.id else g for g in module.generators
+            ),
+        )
+        inverse = UpdateGenerator(module=self.module, generator=found)
+        return _put(document, updated), inverse
+
+
+class AddRule(Command):
+    """Add a spatial rule: connectivity derived from where blocks sit."""
+
+    kind: Literal["add_rule"] = "add_rule"
+    module: Identifier
+    rule: SpatialRule
+    index: int | None = None
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        if any(r.id == self.rule.id for r in module.spatial_rules):
+            raise CommandError(f"module {self.module!r} already has a rule {self.rule.id!r}")
+        rules = _insert(module.spatial_rules, self.rule, self.index)
+        inverse = RemoveRule(module=self.module, rule=self.rule.id)
+        return _put(document, _rebuild(module, spatial_rules=rules)), inverse
+
+
+class RemoveRule(Command):
+    """Remove a spatial rule and every edge it was deriving."""
+
+    kind: Literal["remove_rule"] = "remove_rule"
+    module: Identifier
+    rule: Identifier
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        found = _find(module.spatial_rules, self.rule, "rule", module.id)
+        index = module.spatial_rules.index(found)
+        updated = _rebuild(
+            module, spatial_rules=tuple(r for r in module.spatial_rules if r.id != self.rule)
+        )
+        return _put(document, updated), AddRule(module=self.module, rule=found, index=index)
+
+
+class UpdateRule(Command):
+    """Replace a spatial rule in place."""
+
+    kind: Literal["update_rule"] = "update_rule"
+    module: Identifier
+    rule: SpatialRule
+
+    def apply(self, document: Document) -> tuple[Document, AnyCommand]:
+        module = _module(document, self.module)
+        found = _find(module.spatial_rules, self.rule.id, "rule", module.id)
+        updated = _rebuild(
+            module,
+            spatial_rules=tuple(
+                self.rule if r.id == self.rule.id else r for r in module.spatial_rules
+            ),
+        )
+        return _put(document, updated), UpdateRule(module=self.module, rule=found)
+
+
 class SetModulePorts(Command):
     """Declare a module's boundary: what the model takes in and gives back."""
 
@@ -262,7 +372,13 @@ class Batch(Command):
 
 
 AnyCommand: TypeAlias = Annotated[
-    AddNode
+    AddGenerator
+    | RemoveGenerator
+    | UpdateGenerator
+    | AddRule
+    | RemoveRule
+    | UpdateRule
+    | AddNode
     | RemoveNode
     | MoveNode
     | SetAttrs
@@ -293,6 +409,13 @@ def _node(module: Module, node_id: str) -> Node:
     if node is None:
         raise CommandError(f"module {module.id!r} has no node {node_id!r}")
     return node
+
+
+def _find(items: tuple[Any, ...], item_id: str, what: str, module_id: str) -> Any:
+    found = next((item for item in items if item.id == item_id), None)
+    if found is None:
+        raise CommandError(f"module {module_id!r} has no {what} {item_id!r}")
+    return found
 
 
 def _require_direction(port: Port, direction: PortDirection, module_id: str) -> None:
