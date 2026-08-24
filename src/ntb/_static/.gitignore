@@ -1,0 +1,5 @@
+# The studio bundle is built by `npm run build` in apps/studio and packaged
+# into the wheel by CI. Build output does not belong in git.
+*
+!.gitignore
+!.gitkeep
