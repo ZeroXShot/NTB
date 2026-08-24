@@ -11,6 +11,7 @@ from ntb.ops.spec import (
     CallKind,
     OnnxMapping,
     OpSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
 )
@@ -146,6 +147,7 @@ PERMUTE = register(
             imports=("keras",),
         ),
         onnx=OnnxMapping(op_type="Transpose", attr_map={"order": "perm"}),
+        parity=ParityCase(inputs={"in": (2, 3, 4)}, attrs={"order": [0, 2, 1]}),
     )
 )
 
@@ -188,15 +190,18 @@ CONCAT = register(
             target="torch.cat",
             kind=CallKind.FUNCTION,
             attr_map={"axis": "dim"},
+            pack_inputs=True,
             imports=("torch",),
         ),
         keras=BackendMapping(
             target="keras.ops.concatenate",
             kind=CallKind.FUNCTION,
             attr_map={"axis": "axis"},
+            pack_inputs=True,
             imports=("keras",),
         ),
         onnx=OnnxMapping(op_type="Concat", attr_map={"axis": "axis"}),
+        parity=ParityCase(inputs={"a": (2, 3, 4), "b": (2, 5, 4)}),
     )
 )
 
