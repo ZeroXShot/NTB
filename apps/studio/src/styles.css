@@ -321,3 +321,88 @@ button:disabled {
   border-radius: 6px;
   cursor: pointer;
 }
+
+.modes {
+  display: flex;
+  gap: 2px;
+}
+
+.modes button.on {
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.legend {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.legend .swatch {
+  width: 14px;
+  height: 2px;
+  display: inline-block;
+}
+
+.legend .swatch.edge {
+  background: #8d99ae;
+}
+
+.legend .swatch.rule {
+  background: #22b8cf;
+}
+
+.legend .swatch.chain {
+  background: #748ffc;
+}
+
+.legend em {
+  color: #22b8cf;
+  font-style: normal;
+  padding-left: 6px;
+}
+
+.field.axes > div {
+  display: flex;
+  gap: 3px;
+}
+
+.field.axes input {
+  width: 100%;
+  min-width: 0;
+}
+
+.spatial header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.spatial .card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.spatial .card h4 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 6px;
+}
+
+.tiny {
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+button.tiny.danger {
+  width: auto;
+}
