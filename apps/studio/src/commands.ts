@@ -1,6 +1,7 @@
 // Command builders. Every edit in the UI becomes one of these and goes to the
 // server; nothing mutates the local document.
 
+import type { Generator, SpatialRule } from "./ir.gen";
 import type { Command, Module, Node, OpInfo } from "./types";
 import { freshEdgeId, freshNodeId } from "./store";
 
@@ -70,6 +71,30 @@ export function connectNodes(
 
 export function disconnect(module: Module, edgeId: string): Command {
   return { kind: "disconnect", module: module.id, edge: edgeId };
+}
+
+export function updateGenerator(module: Module, generator: Generator): Command {
+  return { kind: "update_generator", module: module.id, generator: generator as unknown as Record<string, unknown> };
+}
+
+export function addGenerator(module: Module, generator: Generator): Command {
+  return { kind: "add_generator", module: module.id, generator: generator as unknown as Record<string, unknown> };
+}
+
+export function removeGenerator(module: Module, id: string): Command {
+  return { kind: "remove_generator", module: module.id, generator: id };
+}
+
+export function updateRule(module: Module, rule: SpatialRule): Command {
+  return { kind: "update_rule", module: module.id, rule: rule as unknown as Record<string, unknown> };
+}
+
+export function addRule(module: Module, rule: SpatialRule): Command {
+  return { kind: "add_rule", module: module.id, rule: rule as unknown as Record<string, unknown> };
+}
+
+export function removeRule(module: Module, id: string): Command {
+  return { kind: "remove_rule", module: module.id, rule: id };
 }
 
 function defaults(op: OpInfo): Record<string, unknown> {
