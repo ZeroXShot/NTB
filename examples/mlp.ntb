@@ -1,0 +1,133 @@
+{
+  "doc": "Smallest interesting NTB document: a plain 2D DAG, no geometry in play.",
+  "metadata": {},
+  "modules": [
+    {
+      "doc": "A two-layer perceptron over flattened 28x28 images.",
+      "edges": [
+        {
+          "dst": {
+            "node": "act1",
+            "port": "in"
+          },
+          "id": "e1",
+          "src": {
+            "node": "fc1",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "fc2",
+            "port": "in"
+          },
+          "id": "e2",
+          "src": {
+            "node": "act1",
+            "port": "out"
+          }
+        }
+      ],
+      "generators": [],
+      "id": "mlp",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "x",
+          "optional": false,
+          "type": {
+            "dtype": "float32",
+            "layout": null,
+            "shape": [
+              "batch",
+              784
+            ]
+          }
+        }
+      ],
+      "name": "MNIST MLP",
+      "nodes": [
+        {
+          "attrs": {
+            "in_features": 784,
+            "out_features": 128
+          },
+          "id": "fc1",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "act1",
+          "name": "",
+          "op": "ntb.relu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              2.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_features": 128,
+            "out_features": 10
+          },
+          "id": "fc2",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              4.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "logits",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": []
+    }
+  ],
+  "name": "mlp",
+  "ntb_version": "",
+  "root": "mlp",
+  "schema_version": 1
+}
