@@ -139,16 +139,16 @@ class _Builder:
     def _call_inputs(
         self, node: CoreNode, spec: OpSpec, mapping: BackendMapping
     ) -> tuple[list[ast.expr], dict[str, ast.expr]]:
-        connected: dict[str, str] = {}
+        connected: dict[str, list[str]] = {}
         for edge in self.graph.incoming(node.id):
             variable = self._values_by_port.get((edge.src.node, edge.src.port))
             if variable is None:
                 raise EmitError(f"{edge.src} has no emitted value")
-            connected[edge.dst.port] = variable
+            connected.setdefault(edge.dst.port, []).append(variable)
         for port in spec.inputs:
             pinned = self._values_by_port.get((node.id, port.name))
             if pinned is not None:
-                connected.setdefault(port.name, pinned)
+                connected.setdefault(port.name, [pinned])
 
         # A backend may fill an unconnected port from another one, which is how
         # self-attention passes the same tensor as query, key and value.
@@ -159,17 +159,22 @@ class _Builder:
         positional: list[ast.expr] = []
         keywords: dict[str, ast.expr] = {}
         for port in spec.inputs:
-            variable = connected.get(port.name)
-            if variable is None:
+            variables = connected.get(port.name)
+            if not variables:
                 if port.optional:
                     continue
                 raise EmitError(f"node {node.id!r} has nothing connected to {port.name!r}")
-            if port.name in mapping.input_kwargs:
-                keywords[mapping.input_kwargs[port.name]] = pysrc.name(variable)
+            # A variadic port is one argument: the list of everything wired to it.
+            if port.variadic:
+                positional.append(_list(variables))
+            elif port.name in mapping.input_kwargs:
+                keywords[mapping.input_kwargs[port.name]] = pysrc.name(variables[0])
             else:
-                positional.append(pysrc.name(variable))
+                positional.append(pysrc.name(variables[0]))
 
-        if mapping.pack_inputs:
+        # pack_inputs turns fixed ports into one list (torch.cat). A variadic
+        # port is already a list, so packing it again would nest it.
+        if mapping.pack_inputs and not any(p.variadic for p in spec.inputs):
             positional = [ast.List(elts=positional, ctx=ast.Load())]
         return positional, keywords
 
@@ -265,11 +270,18 @@ def _backend_kwargs(mapping: BackendMapping, attrs: dict[str, object]) -> dict[s
 
 
 def _value_name(node_id: str, port: str, output_count: int) -> str:
-    """A single-output node names its value after itself; others suffix the port."""
-    tail = node_id.rsplit("/", 1)[-1]
-    return tail if output_count == 1 else f"{tail}_{port}"
+    """A single-output node names its value after itself; others suffix the port.
+
+    The whole path, not the last segment: two instances of one module both end
+    in ``mix``, and naming them alike silently wires the second to the first.
+    """
+    return node_id if output_count == 1 else f"{node_id}_{port}"
 
 
 def _class_name(name: str) -> str:
     cleaned = pysrc.identifier(name or "model", fallback="model")
     return "".join(part.capitalize() or "_" for part in cleaned.split("_")) or "Model"
+
+
+def _list(variables: list[str]) -> ast.expr:
+    return ast.List(elts=[pysrc.name(v) for v in variables], ctx=ast.Load())
