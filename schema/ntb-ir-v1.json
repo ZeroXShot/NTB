@@ -36,9 +36,9 @@
           "$ref": "#/$defs/Endpoint"
         },
         "id": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Id",
           "type": "string"
         },
@@ -59,17 +59,17 @@
       "description": "One end of an edge: a port on a node.",
       "properties": {
         "node": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Node",
           "type": "string"
         },
         "port": {
           "default": "out",
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Port",
           "type": "string"
         }
@@ -109,9 +109,9 @@
           "type": "integer"
         },
         "id": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Id",
           "type": "string"
         },
@@ -123,9 +123,9 @@
         "module": {
           "default": "out",
           "description": "Id of the Module to instantiate.",
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Module",
           "type": "string"
         },
@@ -191,9 +191,9 @@
           "type": "array"
         },
         "id": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Id",
           "type": "string"
         },
@@ -258,9 +258,9 @@
           "type": "object"
         },
         "id": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Id",
           "type": "string"
         },
@@ -272,9 +272,9 @@
         },
         "op": {
           "description": "Registry op name, or 'ntb.module' to instantiate a Module.",
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Op",
           "type": "string"
         },
@@ -384,9 +384,9 @@
           "$ref": "#/$defs/PortDirection"
         },
         "name": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Name",
           "type": "string"
         },
@@ -438,18 +438,18 @@
           "type": "boolean"
         },
         "id": {
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Id",
           "type": "string"
         },
         "input_port": {
           "default": "in",
           "description": "Port on the target node that generated edges arrive at.",
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Input Port",
           "type": "string"
         },
@@ -464,9 +464,9 @@
         "members": {
           "description": "Ids of the nodes this rule wires, within the owning module.",
           "items": {
-            "maxLength": 128,
+            "maxLength": 256,
             "minLength": 1,
-            "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
             "type": "string"
           },
           "title": "Members",
@@ -475,9 +475,9 @@
         "output_port": {
           "default": "out",
           "description": "Port on the source node that generated edges leave from.",
-          "maxLength": 128,
+          "maxLength": 256,
           "minLength": 1,
-          "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
           "title": "Output Port",
           "type": "string"
         },
@@ -592,9 +592,9 @@
     "root": {
       "default": "out",
       "description": "Id of the module that is the model itself.",
-      "maxLength": 128,
+      "maxLength": 256,
       "minLength": 1,
-      "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-]*$",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_./\\-]*$",
       "title": "Root",
       "type": "string"
     },
