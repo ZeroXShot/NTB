@@ -19,6 +19,7 @@
       ],
       "generators": [],
       "id": "block",
+      "input_bindings": {},
       "inputs": [
         {
           "direction": "in",
@@ -73,6 +74,7 @@
           "ports": []
         }
       ],
+      "output_bindings": {},
       "outputs": [
         {
           "direction": "out",
@@ -89,6 +91,7 @@
       "edges": [],
       "generators": [],
       "id": "lateral",
+      "input_bindings": {},
       "inputs": [
         {
           "direction": "in",
@@ -160,6 +163,7 @@
           "ports": []
         }
       ],
+      "output_bindings": {},
       "outputs": [
         {
           "direction": "out",
@@ -208,6 +212,7 @@
         }
       ],
       "id": "tower",
+      "input_bindings": {},
       "inputs": [
         {
           "direction": "in",
@@ -225,6 +230,7 @@
       ],
       "name": "Vertical tower",
       "nodes": [],
+      "output_bindings": {},
       "outputs": [
         {
           "direction": "out",
