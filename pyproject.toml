@@ -50,7 +50,9 @@ path = "src/ntb/__init__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/ntb"]
 # The studio bundle is git-ignored build output, and hatchling skips ignored
-# files unless they are named here. Without this the wheel ships no UI.
+# files unless they are named here. Without this the wheel ships no UI. The
+# ignore rule lives in the root .gitignore: vite empties this directory on every
+# build, so a .gitignore inside it would not survive.
 artifacts = ["src/ntb/_static/**"]
 
 [tool.hatch.build.targets.sdist]
