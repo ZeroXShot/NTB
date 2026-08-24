@@ -5,7 +5,7 @@
 // code consistent with the document the server would save.
 
 import { create } from "zustand";
-import type { Command, Module, Node, OpInfo, Snapshot } from "./types";
+import type { Command, Module, Node, OpInfo, RunRecord, Snapshot } from "./types";
 
 const RECONNECT_MS = 1500;
 
@@ -16,6 +16,12 @@ interface Studio {
   error: string | null;
   selection: string[];
   linkFrom: string | null;
+  runs: RunRecord[];
+  /** Loss values per run, appended as the worker reports them. */
+  curves: Record<string, number[]>;
+  refreshRuns: () => void;
+  startRun: (config: Record<string, unknown>) => void;
+  actOnRun: (runId: string, action: "stop" | "resume") => void;
   connect: () => void;
   send: (message: Record<string, unknown>) => void;
   run: (command: Command) => void;
@@ -33,6 +39,37 @@ export const useStudio = create<Studio>((set, get) => ({
   error: null,
   selection: [],
   linkFrom: null,
+  runs: [],
+  curves: {},
+
+  refreshRuns: () => {
+    void fetch("api/runs")
+      .then((response) => response.json())
+      .then((runs: RunRecord[]) => set({ runs }))
+      .catch(() => undefined);
+  },
+
+  startRun: (config) => {
+    void fetch("api/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(config),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error((await response.json()).detail ?? "could not start");
+        get().refreshRuns();
+      })
+      .catch((reason: Error) => set({ error: reason.message }));
+  },
+
+  actOnRun: (runId, action) => {
+    void fetch(`api/runs/${runId}/${action}`, { method: "POST" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error((await response.json()).detail ?? action + " failed");
+        get().refreshRuns();
+      })
+      .catch((reason: Error) => set({ error: reason.message }));
+  },
 
   connect: () => {
     void fetch("api/ops")
@@ -81,6 +118,15 @@ function open(set: (partial: Partial<Studio>) => void, get: () => Studio): void 
         selection: get().selection.filter((id) => alive.has(id)),
         linkFrom: get().linkFrom && alive.has(get().linkFrom as string) ? get().linkFrom : null,
       });
+    } else if (message.type === "run") {
+      const runId = String(message.runId);
+      if (message.event === "metric") {
+        const curves = { ...get().curves };
+        curves[runId] = [...(curves[runId] ?? []), Number(message.value)];
+        set({ curves });
+      }
+      // Anything else changed the run's own state; ask for the new record.
+      if (message.event !== "metric") get().refreshRuns();
     } else if (message.type === "error") {
       set({ error: String(message.message) });
     }
