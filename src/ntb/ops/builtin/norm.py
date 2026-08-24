@@ -15,6 +15,7 @@ from ntb.ops.spec import (
     ParityCase,
     PortSpec,
     ShapeContext,
+    WeightSpec,
 )
 from ntb.shapes.symbolic import dims_equal
 
@@ -56,8 +57,14 @@ LAYERNORM = register(
         keras=BackendMapping(
             target="keras.layers.LayerNormalization",
             attr_map={"eps": "epsilon", "affine": "scale"},
+            weights=(WeightSpec("weight"), WeightSpec("bias")),
+            guard="len(normalized_shape) == 1",
+            guard_message=(
+                "Keras LayerNormalization normalises one axis; normalized_shape "
+                "covers several, which Keras cannot express"
+            ),
             imports=("keras",),
-            notes="Axes are derived from normalized_shape by the emitter.",
+            notes="Keras defaults to the last axis, which is the single-axis case.",
         ),
         onnx=OnnxMapping(
             op_type="LayerNormalization",
@@ -108,6 +115,7 @@ RMSNORM = register(
         keras=BackendMapping(
             target="keras.layers.RMSNormalization",
             attr_map={"eps": "epsilon"},
+            weights=(WeightSpec("weight"),),
             imports=("keras",),
         ),
         onnx=OnnxMapping(
@@ -165,6 +173,12 @@ BATCHNORM = register(
             target="keras.layers.BatchNormalization",
             attr_map={"eps": "epsilon", "momentum": "momentum", "affine": "scale"},
             constants={"axis": 1},
+            weights=(
+                WeightSpec("weight"),
+                WeightSpec("bias"),
+                WeightSpec("running_mean"),
+                WeightSpec("running_var"),
+            ),
             imports=("keras",),
         ),
         onnx=OnnxMapping(
