@@ -126,10 +126,16 @@ def test_emit_prints_to_stdout_by_default() -> None:
     assert result.stdout.startswith("import torch")
 
 
-def test_emit_refuses_a_backend_that_is_not_ready() -> None:
+def test_emit_writes_keras() -> None:
     result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "keras"])
+    assert result.exit_code == 0
+    assert "keras.Model(" in result.stdout
+
+
+def test_emit_refuses_a_backend_that_does_not_exist() -> None:
+    result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "jax"])
     assert result.exit_code == 2
-    assert "phase 5" in result.output
+    assert "torch, keras or onnx" in result.output
 
 
 def test_emit_expands_a_generator_into_real_layers() -> None:
@@ -152,3 +158,27 @@ def test_emit_onnx_without_out_explains_why() -> None:
     result = runner.invoke(app, ["emit", str(EXAMPLES / "mlp.ntb"), "--backend", "onnx"])
     assert result.exit_code == 2
     assert "--out" in result.output
+
+
+def test_import_seeds_a_document_from_onnx(tmp_path: Path) -> None:
+    pytest.importorskip("onnx")
+    from ntb.emit import export_onnx_document
+    from ntb.ir import io
+
+    model = tmp_path / "mlp.onnx"
+    target = tmp_path / "imported.ntb"
+    export_onnx_document(io.load(EXAMPLES / "mlp.ntb")).save(model)
+
+    result = runner.invoke(app, ["import", str(model), "--out", str(target)])
+    assert result.exit_code == 0
+    assert "3 nodes" in result.output
+    assert "weights are not imported" in result.output
+    assert runner.invoke(app, ["validate", str(target)]).exit_code == 0
+
+
+def test_import_refuses_a_file_that_is_not_there(tmp_path: Path) -> None:
+    pytest.importorskip("onnx")
+    result = runner.invoke(
+        app, ["import", str(tmp_path / "ghost.onnx"), "--out", str(tmp_path / "x.ntb")]
+    )
+    assert result.exit_code == 1
