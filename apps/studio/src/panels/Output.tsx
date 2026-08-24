@@ -10,11 +10,12 @@ interface Props {
   snapshot: Snapshot | null;
   onSelect: (nodeId: string) => void;
   spatial: JSX.Element;
+  runs: JSX.Element;
 }
 
-type Tab = "diagnostics" | "code" | "spatial";
+type Tab = "diagnostics" | "code" | "spatial" | "runs";
 
-export function Output({ snapshot, onSelect, spatial }: Props): JSX.Element {
+export function Output({ snapshot, onSelect, spatial, runs }: Props): JSX.Element {
   const [tab, setTab] = useState<Tab>("diagnostics");
   const derived = snapshot?.derived;
   const diagnostics = derived?.diagnostics ?? [];
@@ -32,10 +33,15 @@ export function Output({ snapshot, onSelect, spatial }: Props): JSX.Element {
         <button className={tab === "spatial" ? "on" : ""} onClick={() => setTab("spatial")}>
           Space
         </button>
+        <button className={tab === "runs" ? "on" : ""} onClick={() => setTab("runs")}>
+          Train
+        </button>
       </nav>
 
       {tab === "spatial" ? (
         spatial
+      ) : tab === "runs" ? (
+        runs
       ) : tab === "diagnostics" ? (
         <div className="scroll">
           {diagnostics.length === 0 && <p className="ok">No problems. {errors === 0 && "✓"}</p>}
