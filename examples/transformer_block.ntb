@@ -129,6 +129,12 @@
       ],
       "generators": [],
       "id": "encoder_block",
+      "input_bindings": {
+        "x": {
+          "node": "norm1",
+          "port": "in"
+        }
+      },
       "inputs": [
         {
           "direction": "in",
@@ -372,6 +378,12 @@
           "ports": []
         }
       ],
+      "output_bindings": {
+        "y": {
+          "node": "res2",
+          "port": "out"
+        }
+      },
       "outputs": [
         {
           "direction": "out",
