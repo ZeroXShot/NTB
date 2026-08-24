@@ -1,0 +1,271 @@
+{
+  "doc": "A network whose topology is its geometry. Signal enters at the bottom of one column and leaves at the top of another, flowing up through each column and across between them, because that is where the blocks are.",
+  "metadata": {},
+  "modules": [
+    {
+      "doc": "Sums everything the lattice sends it, then transforms it. The input port is variadic, so a cell does not need to know how many neighbours it has.",
+      "edges": [
+        {
+          "dst": {
+            "node": "fc",
+            "port": "in"
+          },
+          "id": "e1",
+          "src": {
+            "node": "mix",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "norm",
+            "port": "in"
+          },
+          "id": "e2",
+          "src": {
+            "node": "fc",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "act",
+            "port": "in"
+          },
+          "id": "e3",
+          "src": {
+            "node": "norm",
+            "port": "out"
+          }
+        }
+      ],
+      "generators": [],
+      "id": "cell",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "in",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "name": "Lattice cell",
+      "nodes": [
+        {
+          "attrs": {},
+          "id": "mix",
+          "name": "",
+          "op": "ntb.sum",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "in_features": "$width",
+            "out_features": "$width"
+          },
+          "id": "fc",
+          "name": "",
+          "op": "ntb.linear",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_z",
+            "pos": [
+              0.0,
+              0.0,
+              0.3
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {
+            "normalized_shape": [
+              "$width"
+            ]
+          },
+          "id": "norm",
+          "name": "",
+          "op": "ntb.layernorm",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_z",
+            "pos": [
+              0.0,
+              0.0,
+              0.6
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "act",
+          "name": "",
+          "op": "ntb.gelu",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_z",
+            "pos": [
+              0.0,
+              0.0,
+              0.9
+            ]
+          },
+          "ports": []
+        }
+      ],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "out",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {
+        "width": 64
+      },
+      "spatial_rules": []
+    },
+    {
+      "doc": "Four columns of four cells on a 2x2x4 grid. Nobody drew a single edge: every connection comes from the lattice rule reading where the cells sit. Move a column and the architecture changes.",
+      "edges": [],
+      "generators": [
+        {
+          "attr_bindings": {},
+          "axis": "z",
+          "chain": false,
+          "count": 4,
+          "id": "col0",
+          "label": "Column at x=0, y=0",
+          "module": "cell",
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "step": 1.0
+        },
+        {
+          "attr_bindings": {},
+          "axis": "z",
+          "chain": false,
+          "count": 4,
+          "id": "col1",
+          "label": "Column at x=3, y=0",
+          "module": "cell",
+          "origin": [
+            3.0,
+            0.0,
+            0.0
+          ],
+          "step": 1.0
+        },
+        {
+          "attr_bindings": {},
+          "axis": "z",
+          "chain": false,
+          "count": 4,
+          "id": "col2",
+          "label": "Column at x=0, y=3",
+          "module": "cell",
+          "origin": [
+            0.0,
+            3.0,
+            0.0
+          ],
+          "step": 1.0
+        },
+        {
+          "attr_bindings": {},
+          "axis": "z",
+          "chain": false,
+          "count": 4,
+          "id": "col3",
+          "label": "Column at x=3, y=3",
+          "module": "cell",
+          "origin": [
+            3.0,
+            3.0,
+            0.0
+          ],
+          "step": 1.0
+        }
+      ],
+      "id": "lattice",
+      "inputs": [
+        {
+          "direction": "in",
+          "name": "x",
+          "optional": false,
+          "type": {
+            "dtype": "float32",
+            "layout": null,
+            "shape": [
+              "batch",
+              64
+            ]
+          }
+        }
+      ],
+      "name": "3D lattice",
+      "nodes": [],
+      "outputs": [
+        {
+          "direction": "out",
+          "name": "y",
+          "optional": false,
+          "type": null
+        }
+      ],
+      "params": {},
+      "spatial_rules": [
+        {
+          "axis": "z",
+          "bidirectional": false,
+          "id": "grid",
+          "input_port": "in",
+          "kind": "lattice",
+          "label": "Wire every cell to the cells one grid step away, up and sideways.",
+          "members": [
+            "col0",
+            "col1",
+            "col2",
+            "col3"
+          ],
+          "output_port": "out",
+          "radius": null
+        }
+      ]
+    }
+  ],
+  "name": "lattice-3d",
+  "ntb_version": "",
+  "root": "lattice",
+  "schema_version": 1
+}
