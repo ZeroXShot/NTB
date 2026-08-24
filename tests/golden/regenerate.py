@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ntb.emit import emit_torch_document
+from ntb.emit import emit_keras_document, emit_torch_document
 from ntb.ir import io
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,12 +19,14 @@ NAMES = ("mlp", "transformer_block", "cnn3d", "vertical_tower", "lattice_3d")
 
 
 def main() -> None:
-    target = Path(__file__).resolve().parent / "torch"
-    target.mkdir(parents=True, exist_ok=True)
-    for name in NAMES:
-        emitted = emit_torch_document(io.load(EXAMPLES / f"{name}.ntb"))
-        (target / f"{name}.py").write_text(emitted.source, encoding="utf-8", newline="\n")
-        print(f"wrote {name}.py")
+    root = Path(__file__).resolve().parent
+    for backend, emit in (("torch", emit_torch_document), ("keras", emit_keras_document)):
+        target = root / backend
+        target.mkdir(parents=True, exist_ok=True)
+        for name in NAMES:
+            emitted = emit(io.load(EXAMPLES / f"{name}.ntb"))
+            (target / f"{name}.py").write_text(emitted.source, encoding="utf-8", newline=chr(10))
+            print(f"wrote {backend}/{name}.py")
 
 
 if __name__ == "__main__":
