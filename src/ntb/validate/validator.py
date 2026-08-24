@@ -59,6 +59,17 @@ def _check_module(
                     )
                 )
 
+    for bindings, role in ((module.input_bindings, "input"), (module.output_bindings, "output")):
+        for name, endpoint in bindings.items():
+            if endpoint.node not in known:
+                found.append(
+                    Diagnostic(
+                        code=Code.STRUCTURE,
+                        message=f"{role} port {name!r} is bound to unknown node {endpoint.node!r}",
+                        location=Location(module=module.id, port=name),
+                    )
+                )
+
     for generator in module.generators:
         if generator.module not in known_modules:
             found.append(
