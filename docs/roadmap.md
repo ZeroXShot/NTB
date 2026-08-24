@@ -15,10 +15,46 @@ every feature that was going to bend it. Until then, install from a checkout.
 | 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | **done** |
 | 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it | **done** |
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | **done** |
-| 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | |
+| 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | **done** |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
 | 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 5 in detail
+
+- [x] Keras 3 emitter, functional API, channels-first so a document means the
+      same model as in torch
+- [x] `ntb emit --backend keras`, with golden files for all five examples
+- [x] Three-way numeric parity: 25 of 25 verifiable ops agree between torch and
+      Keras with the weights transferred, and 25 of 25 between torch and
+      onnxruntime. The weight layouts are declared in the registry
+      (`WeightSpec`), not hand-written per op
+- [x] Declarative knobs instead of special cases: `pad_target` (Keras has no
+      integer padding), `shape_arg` (no axis-range flatten), `derived`
+      (`key_dim = embed_dim // num_heads`), `call_constants`, and `guard`
+- [x] `ntb import model.onnx --out model.ntb`, with automatic left-to-right
+      layout and explicit boundary bindings, since ONNX says exactly where the
+      model's input goes
+- [x] Import reads attributes back out of the weight shapes the registry already
+      declares, and reports what it could not read instead of guessing
+
+Two bugs the phase found in earlier work, both now pinned by tests:
+
+* The **ONNX exporter dropped `padding` entirely**. Every padded convolution
+  exported as a smaller one. The parity cases were unpadded, and `cnn3d` ends in
+  a global pool, so the output shape matched anyway. The parity cases are padded
+  now.
+* `avgpool` disagreed between torch and ONNX: torch averages over the padded
+  window, ONNX leaves the padding out of the divisor unless told otherwise.
+
+What Keras cannot express, and now refuses rather than approximating:
+
+* A **padded max pool**. Keras pads with zeros; a max pool needs -inf, so the
+  model would be a different one. Convolutions and average pooling are fine.
+* `layernorm` over more than one axis.
+
+Not imported: weights. NTB-IR stores an architecture, not a checkpoint. Carrying
+tensors across is phase 6 work.
 
 ## Phase 4 in detail
 
