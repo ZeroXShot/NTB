@@ -1,7 +1,7 @@
 // Command builders. Every edit in the UI becomes one of these and goes to the
 // server; nothing mutates the local document.
 
-import type { Generator, SpatialRule } from "./ir.gen";
+import type { Endpoint, Generator, SpatialRule } from "./ir.gen";
 import type { Command, Module, Node, OpInfo } from "./types";
 import { freshEdgeId, freshNodeId } from "./store";
 
@@ -95,6 +95,15 @@ export function addRule(module: Module, rule: SpatialRule): Command {
 
 export function removeRule(module: Module, id: string): Command {
   return { kind: "remove_rule", module: module.id, rule: id };
+}
+
+export function bindPort(
+  module: Module,
+  direction: "in" | "out",
+  port: string,
+  endpoint: Endpoint | null,
+): Command {
+  return { kind: "bind_port", module: module.id, direction, port, endpoint };
 }
 
 function defaults(op: OpInfo): Record<string, unknown> {
