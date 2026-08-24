@@ -39,10 +39,18 @@ class Location:
     node: str | None = None
     port: str | None = None
     edge: str | None = None
+    #: The block of the root module this sits inside, which for a generated
+    #: instance is the only way to say *which* repetition went wrong.
+    block: str | None = None
+    #: The full path of the lowered node, when the problem was found after
+    #: lowering rather than in the authored document.
+    path: str | None = None
 
     def __str__(self) -> str:
         parts = [p for p in (self.module, self.node) if p]
         text = "/".join(parts) if parts else "document"
+        if self.path and self.path != self.node:
+            text = f"{text} ({self.path})"
         if self.port:
             text = f"{text}.{self.port}"
         if self.edge:
