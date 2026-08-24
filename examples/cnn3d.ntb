@@ -95,12 +95,23 @@
         },
         {
           "dst": {
-            "node": "head",
+            "node": "flat",
             "port": "in"
           },
           "id": "e9",
           "src": {
             "node": "gap",
+            "port": "out"
+          }
+        },
+        {
+          "dst": {
+            "node": "head",
+            "port": "in"
+          },
+          "id": "e10",
+          "src": {
+            "node": "flat",
             "port": "out"
           }
         }
@@ -343,6 +354,26 @@
             "orient": "along_x",
             "pos": [
               16.0,
+              0.0,
+              0.0
+            ]
+          },
+          "ports": []
+        },
+        {
+          "attrs": {},
+          "id": "flat",
+          "name": "",
+          "op": "ntb.flatten",
+          "placement": {
+            "extent": [
+              1.0,
+              1.0,
+              1.0
+            ],
+            "orient": "along_x",
+            "pos": [
+              17.0,
               0.0,
               0.0
             ]
