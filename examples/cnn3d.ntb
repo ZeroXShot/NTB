@@ -118,6 +118,7 @@
       ],
       "generators": [],
       "id": "cnn3d",
+      "input_bindings": {},
       "inputs": [
         {
           "direction": "in",
@@ -404,6 +405,7 @@
           "ports": []
         }
       ],
+      "output_bindings": {},
       "outputs": [
         {
           "direction": "out",
