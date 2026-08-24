@@ -94,9 +94,13 @@ class TestSpatialRule:
         with pytest.raises(ValidationError, match="lists a member twice"):
             SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=("a", "a"))
 
-    def test_single_member_is_rejected(self) -> None:
-        with pytest.raises(ValidationError, match="at least two members"):
-            SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=("a",))
+    def test_no_members_is_rejected(self) -> None:
+        with pytest.raises(ValidationError, match="lists no members"):
+            SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=())
+
+    def test_one_member_is_allowed_because_it_may_be_a_generator(self) -> None:
+        # Resolution is where a rule that covers fewer than two blocks fails.
+        assert SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=("stack",)).members
 
 
 class TestPlacement:
