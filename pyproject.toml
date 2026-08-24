@@ -1,0 +1,99 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ntb"
+dynamic = ["version"]
+description = "Neural Tensor Builder - build AI architectures graphically in 2D and 3D"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "ZeroXShot" }]
+keywords = ["neural-network", "transformer", "pytorch", "keras", "onnx", "visual-editor"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2.9",
+    "sympy>=1.13",
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+torch = ["torch>=2.4"]
+keras = ["keras>=3.5"]
+onnx = ["onnx>=1.17", "onnxruntime>=1.19"]
+server = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "websockets>=13"]
+all = ["ntb[torch,keras,onnx,server]"]
+
+[project.scripts]
+ntb = "ntb.cli.__main__:app"
+
+[project.urls]
+Homepage = "https://github.com/ZeroXShot/NTB"
+Repository = "https://github.com/ZeroXShot/NTB"
+Issues = "https://github.com/ZeroXShot/NTB/issues"
+
+[tool.hatch.version]
+path = "src/ntb/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ntb"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/ntb", "schema", "examples", "tests", "README.md", "LICENSE"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "A",         # builtins shadowing
+    "C4",        # comprehensions
+    "PTH",       # use pathlib
+    "RUF",
+]
+ignore = ["N818"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+enable_error_code = ["redundant-expr", "possibly-undefined", "truthy-bool"]
+
+[[tool.mypy.overrides]]
+module = ["sympy.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "torch: requires the torch extra",
+    "keras: requires the keras extra",
+    "onnx: requires the onnx extra",
+]
