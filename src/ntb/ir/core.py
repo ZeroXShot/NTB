@@ -55,6 +55,25 @@ class CoreEdge(BaseModel):
     origin: Origin
 
 
+class GraphInput(BaseModel):
+    """A model input: the name the author gave it and where it lands."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: Identifier
+    endpoint: Endpoint
+    type: TensorType
+
+
+class GraphOutput(BaseModel):
+    """A model output: the name the author gave it and where it comes from."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: Identifier
+    endpoint: Endpoint
+
+
 class CoreGraph(BaseModel):
     """A flat DAG ready for shape inference and emission."""
 
@@ -63,8 +82,8 @@ class CoreGraph(BaseModel):
     name: str = ""
     nodes: tuple[CoreNode, ...] = ()
     edges: tuple[CoreEdge, ...] = ()
-    inputs: tuple[tuple[Endpoint, TensorType], ...] = ()
-    outputs: tuple[Endpoint, ...] = ()
+    inputs: tuple[GraphInput, ...] = ()
+    outputs: tuple[GraphOutput, ...] = ()
 
     @model_validator(mode="after")
     def _validate_references(self) -> CoreGraph:
