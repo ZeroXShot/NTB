@@ -15,7 +15,8 @@ Read [docs/adr](docs/adr/) before proposing anything structural. In short:
 3. **Op semantics are declared once**, in `src/ntb/ops`. A backend quirk lives in
    that backend's mapping, never as a special case inside an emitter.
 4. **Geometry is semantic.** `SpatialRule` is a closed set; adding a kind needs
-   its own ADR.
+   its own ADR. [docs/spatial.md](docs/spatial.md) is the reference for what the
+   existing kinds guarantee — determinism above all.
 5. **The core wheel stays pure Python.** No native extensions.
 
 ## Setting up
