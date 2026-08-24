@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, TypeAlias
+from typing import Any, NoReturn, TypeAlias
 
 from ntb.ir.types import DType, TensorType
 
@@ -116,7 +116,7 @@ class ShapeContext:
         except KeyError:  # pragma: no cover - registry defaults fill these in
             raise ShapeRuleError(f"{self.op}: missing attribute {name!r}") from None
 
-    def fail(self, message: str) -> None:
+    def fail(self, message: str) -> NoReturn:
         raise ShapeRuleError(f"{self.op}: {message}")
 
 
