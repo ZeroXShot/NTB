@@ -16,8 +16,7 @@ htmlcov/
 # Node / frontend
 node_modules/
 apps/studio/dist/
-src/ntb/_static/*
-!src/ntb/_static/.gitkeep
+src/ntb/_static/
 
 # Editors / OS
 .vscode/
