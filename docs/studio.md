@@ -26,8 +26,9 @@ machine, and nothing but your machine can talk to it
 * **Inspector** (right) — id, label, attributes and the *inferred* type on every
   port. The attribute editors are built from the op's declaration, so they are
   never out of date with the registry.
-* **Problems / torch / Space** (bottom) — validation, the generated PyTorch
-  source, and the generators and spatial rules of the current module. The first
+* **Problems / torch / Space / Train** (bottom) — validation, the generated
+  PyTorch source, the generators and spatial rules of the current module, and
+  training runs with their loss curves ([docs/training.md](training.md)). The first
   two are recomputed by the server after every edit, and the source is exactly
   what `ntb emit` would write to a file. The third is where 3D architectures are
   actually authored: see [docs/spatial.md](spatial.md).
@@ -97,7 +98,8 @@ by hand; the inspector has exact number fields for all three axes.
 * No editor for declaring a port and its type; the Space panel only binds ports
   that already exist. Use the snippet above.
 * Connections are made by picking two blocks, not by dragging port to port.
-* No training from the UI — that is phase 6. Emit the source and run it.
+* Training uses synthetic data unless you launch it from the command line with
+  a data script; the panel has no file picker yet.
 * One document per server. Opening a second file replaces the session.
 
 ## If something goes wrong
