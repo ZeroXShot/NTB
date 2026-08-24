@@ -109,8 +109,11 @@ class SpatialRule(BaseModel):
     def _validate_kind_arguments(self) -> SpatialRule:
         if len(set(self.members)) != len(self.members):
             raise ValueError(f"spatial rule {self.id!r} lists a member twice")
-        if len(self.members) < 2:
-            raise ValueError(f"spatial rule {self.id!r} needs at least two members")
+        # One member is legal because a member may be a generator id, which
+        # stands for all of its instances. Resolution rejects a rule that turns
+        # out to cover fewer than two blocks.
+        if not self.members:
+            raise ValueError(f"spatial rule {self.id!r} lists no members")
 
         if self.kind is SpatialRuleKind.NEIGHBORHOOD:
             if self.radius is None:
