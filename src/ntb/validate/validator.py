@@ -163,6 +163,8 @@ def _from_shape_issue(graph: CoreGraph, issue: ShapeIssue) -> Diagnostic:
             module=origin.module if origin else None,
             node=origin.node if origin else issue.node,
             port=issue.port,
+            block=issue.node.split("/", 1)[0],
+            path=issue.node,
         ),
     )
 
@@ -191,6 +193,8 @@ def _check_outputs(graph: CoreGraph, report: ShapeReport) -> list[Diagnostic]:
                         module=origin.module if origin else None,
                         node=origin.node if origin else endpoint.node,
                         port=endpoint.port,
+                        block=endpoint.node.split("/", 1)[0],
+                        path=endpoint.node,
                     ),
                     severity=Severity.WARNING,
                 )
