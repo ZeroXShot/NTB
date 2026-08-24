@@ -58,10 +58,16 @@ def test_checked_in_schema_matches_the_models() -> None:
 
 
 def test_unimplemented_commands_say_which_phase_they_land_in() -> None:
-    for command, phase in (("studio", "3"), ("run", "6")):
-        result = runner.invoke(app, [command])
-        assert result.exit_code == 2
-        assert f"phase {phase}" in result.output
+    result = runner.invoke(app, ["run"])
+    assert result.exit_code == 2
+    assert "phase 6" in result.output
+
+
+def test_studio_refuses_a_file_that_is_not_there() -> None:
+    # Nothing here starts a server: the path check happens first.
+    result = runner.invoke(app, ["studio", "no/such/model.ntb"])
+    assert result.exit_code == 1
+    assert "no such file" in result.output
 
 
 def test_validate_reports_a_shape_error_and_exits_nonzero(tmp_path: Path) -> None:
