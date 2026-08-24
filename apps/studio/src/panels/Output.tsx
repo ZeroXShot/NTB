@@ -9,11 +9,12 @@ import type { Diagnostic, Snapshot } from "../types";
 interface Props {
   snapshot: Snapshot | null;
   onSelect: (nodeId: string) => void;
+  spatial: JSX.Element;
 }
 
-type Tab = "diagnostics" | "code";
+type Tab = "diagnostics" | "code" | "spatial";
 
-export function Output({ snapshot, onSelect }: Props): JSX.Element {
+export function Output({ snapshot, onSelect, spatial }: Props): JSX.Element {
   const [tab, setTab] = useState<Tab>("diagnostics");
   const derived = snapshot?.derived;
   const diagnostics = derived?.diagnostics ?? [];
@@ -28,9 +29,14 @@ export function Output({ snapshot, onSelect }: Props): JSX.Element {
         <button className={tab === "code" ? "on" : ""} onClick={() => setTab("code")}>
           torch
         </button>
+        <button className={tab === "spatial" ? "on" : ""} onClick={() => setTab("spatial")}>
+          Space
+        </button>
       </nav>
 
-      {tab === "diagnostics" ? (
+      {tab === "spatial" ? (
+        spatial
+      ) : tab === "diagnostics" ? (
         <div className="scroll">
           {diagnostics.length === 0 && <p className="ok">No problems. {errors === 0 && "✓"}</p>}
           {diagnostics.map((diagnostic, index) => (
@@ -60,9 +66,9 @@ function Problem({
   return (
     <button
       className={`diagnostic ${diagnostic.severity}`}
-      onClick={() => diagnostic.node && onSelect(diagnostic.node)}
+      onClick={() => (diagnostic.block ?? diagnostic.node) && onSelect(diagnostic.block ?? diagnostic.node!)}
     >
-      <span className="where">{diagnostic.node ?? diagnostic.module ?? "document"}</span>
+      <span className="where">{diagnostic.path ?? diagnostic.node ?? diagnostic.module ?? "document"}</span>
       <span className="what">{diagnostic.message}</span>
       <span className="code-tag">{diagnostic.code}</span>
     </button>
