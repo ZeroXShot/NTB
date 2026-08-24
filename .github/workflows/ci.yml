@@ -55,8 +55,12 @@ jobs:
   # run the generated torch module and compare it against onnxruntime. Torch is
   # heavy, so this runs once rather than across the whole matrix.
   backends:
-    name: torch and onnx parity
+    name: torch, keras and onnx parity
     runs-on: ubuntu-latest
+    # Keras 3 defaults to TensorFlow, which NTB does not depend on. Running it
+    # on torch keeps this job to one framework install.
+    env:
+      KERAS_BACKEND: torch
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -64,10 +68,10 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: python -m pip install -e ".[onnx]" pytest
-      - run: pytest -q -m "torch or onnx"
+      - run: python -m pip install -e ".[onnx,keras]" pytest
+      - run: pytest -q -m "torch or keras or onnx"
       - name: The emitted code must still match the golden files
-        run: pytest -q tests/test_emit_torch.py
+        run: pytest -q tests/test_emit_torch.py tests/test_emit_keras.py
 
   # The frontend generates its types from schema/ntb-ir-v*.json, which is itself
   # generated from the pydantic models. If the checked-in copy drifts, the
