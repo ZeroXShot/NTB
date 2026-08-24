@@ -15,7 +15,7 @@ from ntb.ir import io
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
-NAMES = ("mlp", "transformer_block", "cnn3d")
+NAMES = ("mlp", "transformer_block", "cnn3d", "vertical_tower", "lattice_3d")
 
 
 def main() -> None:
