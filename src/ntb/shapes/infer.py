@@ -74,7 +74,9 @@ def infer_shapes(graph: CoreGraph, *, registry: OpRegistry = REGISTRY) -> ShapeR
             continue
 
         declared = {port.name for port in spec.inputs}
+        many = {port.name for port in spec.inputs if port.variadic}
         inputs: dict[str, TensorType] = {}
+        variadic: dict[str, list[TensorType]] = {name: [] for name in many}
         blocked = False
 
         for edge in graph.incoming(node.id):
@@ -88,7 +90,7 @@ def infer_shapes(graph: CoreGraph, *, registry: OpRegistry = REGISTRY) -> ShapeR
                 )
                 blocked = True
                 continue
-            if edge.dst.port in inputs:
+            if edge.dst.port in inputs and edge.dst.port not in many:
                 issues.append(
                     ShapeIssue(
                         node=node.id,
@@ -112,7 +114,11 @@ def infer_shapes(graph: CoreGraph, *, registry: OpRegistry = REGISTRY) -> ShapeR
                 )
                 blocked = True
                 continue
-            inputs[edge.dst.port] = source
+            if edge.dst.port in many:
+                # Edge order is the argument order a variadic port sees, and it
+                # is deterministic, so a fan-in emits the same code every time.
+                variadic[edge.dst.port].append(source)
+            inputs.setdefault(edge.dst.port, source)
 
         # Graph-level pinned inputs fill ports that no edge feeds.
         for port in spec.inputs:
@@ -126,10 +132,21 @@ def infer_shapes(graph: CoreGraph, *, registry: OpRegistry = REGISTRY) -> ShapeR
 
         try:
             outputs = spec.shape_rule(
-                ShapeContext(op=spec.name, attrs=spec.resolved_attrs(node.attrs), inputs=inputs)
+                ShapeContext(
+                    op=spec.name,
+                    attrs=spec.resolved_attrs(node.attrs),
+                    inputs=inputs,
+                    variadic={name: tuple(types_) for name, types_ in variadic.items() if types_},
+                )
             )
         except ShapeRuleError as exc:
             issues.append(ShapeIssue(node=node.id, message=str(exc)))
+            unresolved.add(node.id)
+            continue
+        except (TypeError, ValueError) as exc:
+            # A shape rule that blows up is a bug, but the studio still has to
+            # draw the document, so it is reported like any other problem.
+            issues.append(ShapeIssue(node=node.id, message=f"{spec.name}: {exc}"))
             unresolved.add(node.id)
             continue
 
