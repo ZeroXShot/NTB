@@ -20,6 +20,7 @@ from ntb.ops.spec import (
     PortSpec,
     ShapeContext,
     ShapeRule,
+    WeightSpec,
 )
 from ntb.shapes.symbolic import ShapeError, conv_out_dim, dims_equal
 
@@ -120,11 +121,14 @@ def _conv(spatial: int) -> OpSpec:
                     "bias": "use_bias",
                 },
                 constants={"data_format": "channels_first", "padding": "valid"},
+                weights=(WeightSpec("weight", "conv_kernel"), WeightSpec("bias")),
+                pad_target=f"keras.layers.ZeroPadding{spatial}D",
                 imports=("keras",),
                 notes="No integer padding in Keras; non-zero lowers to ZeroPadding.",
             ),
             onnx=OnnxMapping(
                 op_type="Conv",
+                pad_attr="pads",
                 attr_map={
                     "kernel_size": "kernel_shape",
                     "stride": "strides",
@@ -143,7 +147,9 @@ def _conv(spatial: int) -> OpSpec:
             ),
             parity=ParityCase(
                 inputs={"in": (2, 3, *([6] * spatial))},
-                attrs={"in_channels": 3, "out_channels": 4},
+                # Padded on purpose: this is what caught the ONNX exporter
+                # dropping `padding` entirely.
+                attrs={"in_channels": 3, "out_channels": 4, "padding": [1] * spatial},
             ),
         )
     )
