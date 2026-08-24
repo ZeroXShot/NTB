@@ -9,11 +9,46 @@ do not overlap: an unfinished foundation makes every later phase more expensive.
 | 1 | NTB-IR, op registry, symbolic shapes, `ntb validate` | A transformer and a 3D CNN authored by hand validate; symbolic dims propagate end to end | **done** |
 | 2 | Python AST emitter, torch backend, ONNX export, parity harness | Every example compiles to torch, trains a step, exports to ONNX and passes numeric parity | **done** |
 | 3 | Studio v1: server, command bus, single 3D canvas in 2D mode | `pip install ntb && ntb studio` on Windows, macOS arm64 and Linux; build an MLP graphically and train it. **First PyPI release (0.1.0)** | **done** |
-| 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | |
+| 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | **done** |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | |
 | 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 4 in detail
+
+The phase the project exists for. See [docs/spatial.md](spatial.md).
+
+- [x] `Generator` expansion: one object stands for N repetitions through space,
+      chained or left to a rule
+- [x] All four `SpatialRule` kinds, as pure deterministic functions over
+      placements (`ntb.spatial.rules`)
+- [x] Module parameters and `"$expr"` attributes, parsed and walked rather than
+      evaluated, because `.ntb` files travel between people
+- [x] `ntb.sum` and variadic ports: without fan-in, three of the four rules
+      produce documents that can never validate
+- [x] `ntb resolve`, which marks every edge geometry produced rather than a person
+- [x] A spatial preview the studio draws from, computed by the same code that
+      lowers the document
+- [x] Perspective camera, orbit, alt-drag to lift a block along Z, and a Space
+      panel that edits generators and rules
+- [x] Diagnostics that name the repetition (`col3-0/mix`), not just the module
+      it was stamped from
+- [x] `examples/lattice_3d.ntb`: 16 cells on a 2x2x4 grid, 64 lowered nodes,
+      28 edges nobody drew, and every parameter receives a gradient
+
+Found along the way, and worth recording: the torch emitter named values after
+the last segment of a node path, so two repetitions of one module shared a
+variable and the generated `forward` silently dropped most of the model. Only 24
+of 64 parameters saw a gradient. It is pinned by a test now.
+
+Known limits:
+
+- Picking still raycasts the instanced mesh rather than using a GPU id buffer.
+- A generated block cannot be selected into the inspector for editing, by
+  design: the generator is the object, not its repetitions.
+- `resolve()` re-runs from scratch on every edit. Fine at this size, and the
+  place to start if a 10k-node document ever feels slow.
 
 ## Phase 3 in detail
 
