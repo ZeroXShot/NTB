@@ -9,7 +9,7 @@ from typing import TypeAlias
 
 import sympy
 
-from ntb.ir.types import Dim
+from ntb.ir.types import Dim, Shape
 
 DimExpr: TypeAlias = sympy.Expr
 
@@ -98,3 +98,63 @@ def conv_out_dim(
             f"with padding {padding}"
         )
     return render(sympy.floor(numerator / stride) + 1)
+
+
+def broadcast(left: Shape, right: Shape) -> Shape:
+    """NumPy broadcasting over possibly symbolic dimensions.
+
+    A symbolic dimension against a concrete one is assumed compatible; only a
+    provable mismatch is an error.
+    """
+    rank = max(len(left), len(right))
+    padded_left = (1,) * (rank - len(left)) + tuple(left)
+    padded_right = (1,) * (rank - len(right)) + tuple(right)
+
+    result: list[Dim] = []
+    for axis, (a, b) in enumerate(zip(padded_left, padded_right, strict=True)):
+        if a == 1:
+            result.append(b)
+        elif b == 1:
+            result.append(a)
+        elif dims_equal(a, b) is False:
+            raise ShapeError(
+                f"cannot broadcast {a} against {b} at axis {axis} "
+                f"(shapes {list(left)} and {list(right)})"
+            )
+        else:
+            result.append(a if isinstance(a, int) else b)
+    return tuple(result)
+
+
+def normalise_axis(axis: int, rank: int) -> int:
+    """Turn a possibly negative axis into a non-negative one."""
+    resolved = axis + rank if axis < 0 else axis
+    if not 0 <= resolved < rank:
+        raise ShapeError(f"axis {axis} is out of range for rank {rank}")
+    return resolved
+
+
+def product(shape: Shape) -> Dim:
+    """The number of elements in a shape, symbolically if need be."""
+    total: DimExpr = sympy.Integer(1)
+    for value in shape:
+        total = total * dim(value)
+    return render(total)
+
+
+def resolve_reshape(shape: Shape, target: Shape) -> Shape:
+    """Apply a reshape target, inferring at most one ``-1`` entry."""
+    wildcards = [i for i, d in enumerate(target) if d == -1]
+    if len(wildcards) > 1:
+        raise ShapeError("reshape target may contain at most one -1")
+    if not wildcards:
+        return tuple(target)
+
+    known: DimExpr = sympy.Integer(1)
+    for i, value in enumerate(target):
+        if i != wildcards[0]:
+            known = known * dim(value)
+    if known == 0:
+        raise ShapeError("reshape target has a zero dimension alongside -1")
+    inferred = render(sympy.simplify(dim(product(shape)) / known))
+    return tuple(inferred if i == wildcards[0] else d for i, d in enumerate(target))
