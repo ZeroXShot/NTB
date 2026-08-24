@@ -9,9 +9,10 @@ from ntb.ops.spec import (
     AttrSpec,
     AttrType,
     BackendMapping,
-    CallKind,
     OnnxMapping,
     OpSpec,
+    ParamSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
 )
@@ -58,7 +59,22 @@ LAYERNORM = register(
             imports=("keras",),
             notes="Axes are derived from normalized_shape by the emitter.",
         ),
-        onnx=OnnxMapping(op_type="LayerNormalization", since_opset=17, attr_map={"eps": "epsilon"}),
+        onnx=OnnxMapping(
+            op_type="LayerNormalization",
+            since_opset=17,
+            attr_map={"eps": "epsilon"},
+            params=(
+                ParamSpec("scale", ("*normalized_shape",), ones=True, torch_name="weight"),
+                ParamSpec(
+                    "bias",
+                    ("*normalized_shape",),
+                    when="affine",
+                    zeros=True,
+                    torch_name="bias",
+                ),
+            ),
+        ),
+        parity=ParityCase(inputs={"in": (2, 3, 6)}, attrs={"normalized_shape": [6]}),
     )
 )
 
@@ -94,7 +110,12 @@ RMSNORM = register(
             attr_map={"eps": "epsilon"},
             imports=("keras",),
         ),
-        onnx=OnnxMapping(op_type="RMSNormalization", since_opset=23, attr_map={"eps": "epsilon"}),
+        onnx=OnnxMapping(
+            op_type="RMSNormalization",
+            since_opset=23,
+            attr_map={"eps": "epsilon"},
+            params=(ParamSpec("scale", ("normalized_size",), ones=True),),
+        ),
     )
 )
 
@@ -132,8 +153,13 @@ BATCHNORM = register(
                 "momentum": "momentum",
                 "affine": "affine",
             },
+            rank_targets={
+                2: "torch.nn.BatchNorm1d",
+                3: "torch.nn.BatchNorm1d",
+                4: "torch.nn.BatchNorm2d",
+                5: "torch.nn.BatchNorm3d",
+            },
             imports=("torch", "torch.nn"),
-            notes="The emitter picks BatchNorm1d/2d/3d from the input rank.",
         ),
         keras=BackendMapping(
             target="keras.layers.BatchNormalization",
@@ -145,7 +171,14 @@ BATCHNORM = register(
             op_type="BatchNormalization",
             since_opset=15,
             attr_map={"eps": "epsilon", "momentum": "momentum"},
+            params=(
+                ParamSpec("scale", ("num_features",), ones=True, torch_name="weight"),
+                ParamSpec("bias", ("num_features",), zeros=True, torch_name="bias"),
+                ParamSpec("mean", ("num_features",), zeros=True, torch_name="running_mean"),
+                ParamSpec("var", ("num_features",), ones=True, torch_name="running_var"),
+            ),
         ),
+        parity=ParityCase(inputs={"in": (2, 4, 5, 5)}, attrs={"num_features": 4}),
     )
 )
 
@@ -159,10 +192,9 @@ DROPOUT = register(
         attrs=(AttrSpec("p", AttrType.FLOAT, default=0.5, minimum=0.0),),
         shape_rule=elementwise,
         torch=BackendMapping(
-            target="torch.nn.functional.dropout",
-            kind=CallKind.FUNCTION,
+            target="torch.nn.Dropout",
             attr_map={"p": "p"},
-            imports=("torch", "torch.nn.functional"),
+            imports=("torch", "torch.nn"),
         ),
         keras=BackendMapping(
             target="keras.layers.Dropout", attr_map={"p": "rate"}, imports=("keras",)
