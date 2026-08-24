@@ -10,8 +10,10 @@ from __future__ import annotations
 import pytest
 
 from ntb.commands import (
+    AddGenerator,
     AddModule,
     AddNode,
+    AddRule,
     AnyCommand,
     Batch,
     CommandError,
@@ -19,27 +21,35 @@ from ntb.commands import (
     Disconnect,
     History,
     MoveNode,
+    RemoveGenerator,
     RemoveModule,
     RemoveNode,
+    RemoveRule,
     RenameNode,
     SetAttrs,
     SetMetadata,
     SetModulePorts,
     SetRoot,
+    UpdateGenerator,
+    UpdateRule,
     apply_all,
     apply_command,
     dump_command,
     parse_command,
 )
 from ntb.ir import (
+    Axis,
     Document,
     Edge,
     Endpoint,
+    Generator,
     Module,
     Node,
     Placement,
     Port,
     PortDirection,
+    SpatialRule,
+    SpatialRuleKind,
     TensorType,
     io,
 )
@@ -88,6 +98,11 @@ def commands() -> list[AnyCommand]:
         AddModule(module=Module(id="block", nodes=(Node(id="n", op="ntb.relu"),))),
         SetRoot(root="m"),
         SetMetadata(name="renamed", doc="hello", metadata={"author": "someone"}),
+        AddGenerator(module="m", generator=Generator(id="g", module="m", count=3)),
+        AddRule(
+            module="m",
+            rule=SpatialRule(id="r", kind=SpatialRuleKind.VERTICAL_STACK, members=("fc1", "fc2")),
+        ),
         Batch(
             commands=(
                 AddNode(module="m", node=Node(id="tail", op="ntb.relu")),
@@ -149,6 +164,71 @@ class TestEditing:
         document = base()
         apply_command(document, RemoveNode(module="m", node="act"))
         assert document.root_module.node("act") is not None
+
+
+class TestSpatialCommands:
+    def spatial(self) -> Document:
+        document = apply_command(
+            base(), AddGenerator(module="m", generator=Generator(id="g", module="m", count=3))
+        ).document
+        return apply_command(
+            document,
+            AddRule(
+                module="m",
+                rule=SpatialRule(
+                    id="r", kind=SpatialRuleKind.VERTICAL_STACK, members=("fc1", "fc2")
+                ),
+            ),
+        ).document
+
+    def test_a_generator_can_be_retuned_in_place(self) -> None:
+        document = self.spatial()
+        wider = Generator(id="g", module="m", count=12, axis=Axis.Z, step=2.0)
+        result = apply_command(document, UpdateGenerator(module="m", generator=wider))
+        assert result.document.root_module.generators[0].count == 12
+        restored = apply_command(result.document, result.inverse).document
+        assert io.dumps(restored) == io.dumps(document)
+
+    def test_a_rule_can_be_retuned_in_place(self) -> None:
+        document = self.spatial()
+        wider = SpatialRule(
+            id="r", kind=SpatialRuleKind.NEIGHBORHOOD, members=("fc1", "fc2"), radius=2.0
+        )
+        result = apply_command(document, UpdateRule(module="m", rule=wider))
+        assert result.document.root_module.spatial_rules[0].radius == 2.0
+        restored = apply_command(result.document, result.inverse).document
+        assert io.dumps(restored) == io.dumps(document)
+
+    def test_removing_a_generator_undoes_exactly(self) -> None:
+        document = self.spatial()
+        result = apply_command(document, RemoveGenerator(module="m", generator="g"))
+        assert result.document.root_module.generators == ()
+        restored = apply_command(result.document, result.inverse).document
+        assert io.dumps(restored) == io.dumps(document)
+
+    def test_removing_a_rule_undoes_exactly(self) -> None:
+        document = self.spatial()
+        result = apply_command(document, RemoveRule(module="m", rule="r"))
+        assert result.document.root_module.spatial_rules == ()
+        restored = apply_command(result.document, result.inverse).document
+        assert io.dumps(restored) == io.dumps(document)
+
+    def test_editing_something_that_is_not_there_is_refused(self) -> None:
+        ghost = Generator(id="ghost", module="m", count=2)
+        with pytest.raises(CommandError, match="has no generator 'ghost'"):
+            apply_command(base(), UpdateGenerator(module="m", generator=ghost))
+
+    def test_a_duplicate_generator_is_refused(self) -> None:
+        with pytest.raises(CommandError, match="already has a generator 'g'"):
+            apply_command(
+                self.spatial(),
+                AddGenerator(module="m", generator=Generator(id="g", module="m", count=2)),
+            )
+
+    def test_a_duplicate_rule_is_refused(self) -> None:
+        rule = SpatialRule(id="r", kind=SpatialRuleKind.LATTICE, members=("fc1", "fc2"))
+        with pytest.raises(CommandError, match="already has a rule 'r'"):
+            apply_command(self.spatial(), AddRule(module="m", rule=rule))
 
 
 class TestRefusals:
