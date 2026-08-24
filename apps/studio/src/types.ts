@@ -13,7 +13,28 @@ export interface Diagnostic {
   node: string | null;
   port: string | null;
   edge: string | null;
+  /** The root-module block this belongs to: which repetition, not just which op. */
+  block: string | null;
+  path: string | null;
   text: string;
+}
+
+export interface Block {
+  key: string;
+  label: string;
+  op: string;
+  kind: "node" | "instance" | "generated";
+  pos: [number, number, number];
+  extent: [number, number, number];
+  source: string;
+  index: number | null;
+}
+
+export interface Link {
+  src: string;
+  dst: string;
+  kind: "edge" | "rule" | "chain";
+  source: string;
 }
 
 export interface Derived {
@@ -21,6 +42,10 @@ export interface Derived {
   types: Record<string, string>;
   code: string;
   codeError: string;
+  /** What the root module looks like in space, generated blocks included. */
+  blocks: Block[];
+  links: Link[];
+  layoutProblems: string[];
 }
 
 export interface Snapshot {
