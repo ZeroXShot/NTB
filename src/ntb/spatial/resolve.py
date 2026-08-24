@@ -7,11 +7,15 @@ ever learns that NTB has three dimensions. See docs/adr/0002.
 
 Two conventions the rest of the system depends on:
 
-*Module boundaries.* A module's ports bind to the free ports of its *terminal*
-members, in declaration order: a member contributes inputs only if nothing feeds
-any of its inputs, and outputs only if nothing consumes any of its outputs.
-Without the terminal test an unconsumed secondary output -- attention weights,
-say -- would capture the module output ahead of the node that ends the chain.
+*Module boundaries.* A port bound in ``input_bindings`` or ``output_bindings``
+lands exactly where the author said. Everything else falls back to position: the
+free ports of the module's *terminal* members, in declaration order, where a
+member contributes inputs only if nothing feeds any of its inputs and outputs
+only if nothing consumes any of its outputs. Without the terminal test an
+unconsumed secondary output -- attention weights, say -- would capture the module
+output ahead of the node that ends the chain. Positional binding is convenient
+and silent; write the binding down whenever the module has more than one
+plausible answer.
 
 *Parameters.* A node attribute written as ``"$expr"`` is evaluated against the
 module's parameters (see :mod:`ntb.spatial.expr`). A generator adds the instance
@@ -27,7 +31,7 @@ from typing import Any
 
 from ntb.ir.core import CoreEdge, CoreGraph, CoreNode, GraphInput, GraphOutput, Origin
 from ntb.ir.document import Document, Module
-from ntb.ir.graph import Endpoint, Generator, Node
+from ntb.ir.graph import Endpoint, Generator, Node, Port
 from ntb.ir.spatial import SpatialRule
 from ntb.ops.registry import REGISTRY, OpRegistry
 from ntb.spatial.expr import ExpressionError, contains_expression, resolve_attrs
@@ -339,9 +343,38 @@ class _Lowering:
                 free_out.extend(candidates_out)
 
         return _Boundary(
-            inputs=_match(module, "input", [p.name for p in module.inputs], free_in),
-            outputs=_match(module, "output", [p.name for p in module.outputs], free_out),
+            inputs=self._side(
+                module, "input", module.inputs, module.input_bindings, members, free_in
+            ),
+            outputs=self._side(
+                module, "output", module.outputs, module.output_bindings, members, free_out
+            ),
         )
+
+    def _side(
+        self,
+        module: Module,
+        role: str,
+        ports: tuple[Port, ...],
+        bindings: Mapping[str, Endpoint],
+        members: Mapping[str, _Member],
+        free: list[Endpoint],
+    ) -> dict[str, Endpoint]:
+        """Bound ports land where they were told; the rest bind by position."""
+        bound: dict[str, Endpoint] = {}
+        for name, endpoint in bindings.items():
+            member = members.get(endpoint.node)
+            if member is None:
+                raise ResolveError(
+                    f"module {module.id!r} binds {role} port {name!r} to unknown node "
+                    f"{endpoint.node!r}"
+                )
+            bound[name] = _port_of(member, endpoint.port, role == "output", module.id)
+
+        taken = {(e.node, e.port) for e in bound.values()}
+        remaining = [port.name for port in ports if port.name not in bound]
+        available = [e for e in free if (e.node, e.port) not in taken]
+        return {**bound, **_match(module, role, remaining, available)}
 
     def _connect(self, source: Endpoint, target: Endpoint, origin: Origin) -> None:
         self._serial += 1
