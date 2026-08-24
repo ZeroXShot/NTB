@@ -15,6 +15,8 @@ from ntb.ops.spec import (
     BackendMapping,
     OnnxMapping,
     OpSpec,
+    ParamSpec,
+    ParityCase,
     PortSpec,
     ShapeContext,
     ShapeRule,
@@ -129,7 +131,19 @@ def _conv(spatial: int) -> OpSpec:
                     "dilation": "dilations",
                     "groups": "group",
                 },
+                params=(
+                    ParamSpec(
+                        "W",
+                        ("out_channels", "in_channels // groups", "*kernel_size"),
+                        torch_name="weight",
+                    ),
+                    ParamSpec("B", ("out_channels",), when="bias", zeros=True, torch_name="bias"),
+                ),
                 notes="Pads are begins then ends per axis; the emitter expands them.",
+            ),
+            parity=ParityCase(
+                inputs={"in": (2, 3, *([6] * spatial))},
+                attrs={"in_channels": 3, "out_channels": 4},
             ),
         )
     )
