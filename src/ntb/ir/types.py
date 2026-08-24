@@ -88,6 +88,7 @@ class TensorType(BaseModel):
 
 
 #: Safe as a JSON key and as a Python attribute name after sanitisation.
+#: ``/`` is reserved for the paths lowering builds ("stage/fc"); do not author it.
 Identifier: TypeAlias = Annotated[
-    str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z_][A-Za-z0-9_.\-]*$")
+    str, Field(min_length=1, max_length=256, pattern=r"^[A-Za-z_][A-Za-z0-9_./\-]*$")
 ]
