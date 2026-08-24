@@ -26,4 +26,6 @@ Thumbs.db
 
 # NTB runtime artifacts
 *.ntb.bak
-runs/
+# Training output, at the root of a working directory. Anchored: `runs/` alone
+# would also ignore src/ntb/runs, which is a package.
+/runs/
