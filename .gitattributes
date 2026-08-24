@@ -1,0 +1,9 @@
+# Normalise to LF everywhere. `.ntb` is a canonical byte-for-byte format and the
+# generated JSON Schema is drift-checked in CI, so a Windows checkout rewriting
+# line endings would produce spurious diffs and failures.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary
