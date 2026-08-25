@@ -51,6 +51,7 @@ export function App(): JSX.Element {
     actOnRun,
   } = useStudio();
   const [mode, setMode] = useState<ViewMode>("2d");
+  const [hidden, setHidden] = useState(0);
 
   useEffect(connect, [connect]);
 
@@ -213,7 +214,14 @@ export function App(): JSX.Element {
           mode={mode}
           onSelect={onSelect}
           onMove={(id, pos) => module && run(moveNode(module, id, pos))}
+          onBudget={setHidden}
         />
+        {hidden > 0 && (
+          <div className="budget">
+            {(nodes.length - hidden).toLocaleString()} of {nodes.length.toLocaleString()} blocks
+            drawn — {hidden.toLocaleString()} are over the scene budget
+          </div>
+        )}
         <div className="hint">
           {linkFrom
             ? `connecting from ${linkFrom} — click the target block, escape to cancel`
