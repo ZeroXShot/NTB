@@ -4,6 +4,6 @@ Build AI architectures graphically in 2D and 3D, then emit them to PyTorch,
 Keras 3 or ONNX.
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = ["__version__"]
