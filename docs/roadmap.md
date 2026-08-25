@@ -18,7 +18,30 @@ every feature that was going to bend it. Until then, install from a checkout.
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | **done** |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | **done** |
 | 7 | MCP server, stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | **done** |
-| 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+| 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | **done** |
+
+## Phase 8 in detail
+
+See [docs/plugins.md](plugins.md).
+
+- [x] Ops from outside the repo arrive through the `ntb.ops` entry point group
+      ([ADR 13](adr/0013-third-party-ops-are-entry-points.md)). A plugin op is an
+      op: `ntb ops`, the studio palette, the MCP tools and all three emitters
+      read one registry
+- [x] `ntb.sdk`: one import path a plugin can rely on, so the layout of
+      `ntb.ops.*` stays NTB's own business
+- [x] `ntb.*` is reserved. A plugin claiming it has its ops taken back out and is
+      reported, because a `.ntb` naming `ntb.conv2d` must mean the same thing
+      everywhere
+- [x] A plugin that fails to import is reported, never raised: `ntb plugins`
+      lists it, and a document that does not use the missing op still works
+- [x] `examples/plugin`, a real distribution contributing `example.softsign`.
+      Its op is verified across torch, Keras and onnxruntime by the parity
+      harness, which is generated from the registry and so covers it without
+      being told
+- [x] The documentation site ([mkdocs.yml](https://github.com/ZeroXShot/NTB/blob/main/mkdocs.yml)),
+      built strictly in CI so a dead link fails a pull request
+- [x] An [example gallery](examples.md): five documents, smallest first
 
 ## Phase 7 in detail
 
