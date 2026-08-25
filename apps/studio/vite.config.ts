@@ -7,6 +7,9 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   build: { outDir: "../../src/ntb/_static", emptyOutDir: true, target: "es2022" },
+  // Only what runs without a GL context. The scene's own tests arrive with the
+  // renderer refactor, where a counter can measure something worth asserting.
+  test: { environment: "node", include: ["src/**/*.test.ts"] },
   server: {
     port: 5173,
     proxy: {
