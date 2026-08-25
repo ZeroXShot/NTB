@@ -156,6 +156,9 @@ class _Exporter:
             self.uses_custom_domain = True
 
         attrs = spec.resolved_attrs(node.attrs)
+        failure = mapping.guard_failure(attrs)
+        if failure is not None:
+            raise OnnxEmitError(f"node {node.id!r}: {failure}")
         slots: dict[str, str | list[str]] = {
             port.name: self._input_name(node, spec, port.name) for port in spec.inputs
         }
