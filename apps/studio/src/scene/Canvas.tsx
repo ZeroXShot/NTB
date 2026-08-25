@@ -12,9 +12,19 @@ interface Props {
   mode: ViewMode;
   onSelect: (nodeId: string | null, additive: boolean) => void;
   onMove: (nodeId: string, pos: [number, number, number]) => void;
+  /** How many blocks the render budget left out, so the UI can say so. */
+  onBudget?: (hidden: number) => void;
 }
 
-export function Canvas({ nodes, edges, selection, mode, onSelect, onMove }: Props): JSX.Element {
+export function Canvas({
+  nodes,
+  edges,
+  selection,
+  mode,
+  onSelect,
+  onMove,
+  onBudget,
+}: Props): JSX.Element {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<GraphView | null>(null);
   const framed = useRef(false);
@@ -34,14 +44,20 @@ export function Canvas({ nodes, edges, selection, mode, onSelect, onMove }: Prop
     };
   }, []);
 
+  // Topology and selection are separate effects on purpose. Together, changing
+  // the selection rebuilt every buffer in the scene and every label in the DOM.
   useEffect(() => {
     view.current?.setGraph(nodes, edges);
-    view.current?.setSelection(selection);
+    onBudget?.(view.current?.hiddenCount() ?? 0);
     if (!framed.current && nodes.length > 0) {
       view.current?.frameAll();
       framed.current = true;
     }
-  }, [nodes, edges, selection]);
+  }, [nodes, edges, onBudget]);
+
+  useEffect(() => {
+    view.current?.setSelection(selection);
+  }, [selection]);
 
   useEffect(() => {
     view.current?.setMode(mode);
