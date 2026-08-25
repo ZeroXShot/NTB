@@ -19,6 +19,40 @@ every feature that was going to bend it. Until then, install from a checkout.
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | **done** |
 | 7 | MCP server, stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | **done** |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | **done** |
+| 9 | Coverage audit, and the debt paid before building on it | `ntb coverage` publishes real numbers; the emitters agree with what the registry says | **done** |
+| 10 | Ops, optimisers and losses expanded on the audit's evidence | Coverage rises; no new op without a parity case | |
+| 11 | The renderer: glyphs per layer, id-buffer picking, detail levels, bundled edges | A lattice seen close up shows units and bundles, not cubes | |
+| 12 | Training seen: measured activations streamed and drawn | A branch that receives no gradient is visibly dark while it trains | |
+| 13 | Imported meshes as node glyphs | A mesh you supply is a node, and still an `ntb.linear` | |
+
+## Phase 9 in detail
+
+See [docs/coverage.md](coverage.md).
+
+- [x] `ntb coverage` introspects `torch.nn`, `torch.optim`, `keras.layers` and
+      `onnx.defs` and measures what the registry reaches. Matching is by a
+      target's last segment, so an op reached through a backend's functional
+      form counts; exclusions are declared **with a reason** rather than left
+      silent
+- [x] The report is generated into `docs/coverage.md` and checked in CI, so a
+      change in what NTB reaches is a diff somebody reviews
+- [x] **`ntb.gelu` was two different models.** The registry's note claimed the
+      emitter mapped `approximate="tanh"` to Keras's boolean; nothing did, so
+      Keras silently used the exact form. `examples/transformer_block.ntb` was
+      affected. Fixed with `value_map`, a declarative knob for a backend that
+      spells the same choice differently, rather than a branch in an emitter
+- [x] `guard` is evaluated by all three emitters, not only Keras. Latent rather
+      than live -- every guard NTB ships is on a Keras mapping -- but a
+      precondition that holds for one backend and not another is not one
+- [x] The scene says how many blocks the render budget left out instead of
+      truncating in silence
+- [x] Selecting a generated block no longer loses the selection on the next
+      broadcast, and changing the selection no longer rebuilds every buffer
+- [x] `frameAll()` frames a block's extent, not its centre
+- [x] [ADR 14](adr/0014-rendering-layers-and-id-buffer-picking.md) records what
+      the renderer actually is, and amends ADR 6 rather than quietly rewriting it
+- [x] The first tests the frontend has ever had (`vitest`), and `three` pinned
+      exactly
 
 ## Phase 8 in detail
 
