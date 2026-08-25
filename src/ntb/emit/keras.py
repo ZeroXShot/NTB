@@ -148,14 +148,9 @@ class _Builder:
         self, node: CoreNode, mapping: BackendMapping, attrs: dict[str, object]
     ) -> None:
         """Refuse a mapping whose preconditions the attributes do not meet."""
-        if not mapping.guard:
-            return
-        try:
-            holds = evaluate(mapping.guard, attrs)
-        except ExpressionError as exc:  # pragma: no cover - a malformed guard is a bug
-            raise EmitError(f"node {node.id!r}: guard {mapping.guard!r}: {exc}") from exc
-        if not holds:
-            raise EmitError(f"node {node.id!r}: {mapping.guard_message or mapping.guard}")
+        failure = mapping.guard_failure(attrs)
+        if failure is not None:
+            raise EmitError(f"node {node.id!r}: {failure}")
 
     def _call_inputs(
         self,
@@ -237,7 +232,7 @@ class _Builder:
         kwargs: dict[str, object] = {}
         for ntb_name, backend_name in mapping.attr_map.items():
             if ntb_name in attrs and attrs[ntb_name] is not None:
-                kwargs[backend_name] = attrs[ntb_name]
+                kwargs[backend_name] = mapping.translate(ntb_name, attrs[ntb_name])
         for backend_name, expression in mapping.derived.items():
             try:
                 kwargs[backend_name] = evaluate(expression, attrs)
