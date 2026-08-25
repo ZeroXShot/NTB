@@ -21,3 +21,4 @@ an accepted record: the point is the trail.
 | [0009](0009-the-server-broadcasts-snapshots.md) | The studio server broadcasts snapshots, not patches | Accepted |
 | [0010](0010-the-studio-server-is-local-only.md) | The studio server answers only same-origin requests | Accepted |
 | [0011](0011-training-runs-in-their-own-process.md) | A training run gets its own process | Accepted |
+| [0012](0012-mcp-tools-are-generated-from-the-command-bus.md) | MCP tools are generated from the command bus | Accepted |
