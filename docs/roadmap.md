@@ -17,8 +17,30 @@ every feature that was going to bend it. Until then, install from a checkout.
 | 4 | Spatial semantics: perspective editing, `Generator`, `SpatialRule` | A vertically stacked 3D architecture resolves to a DAG, validates, emits torch and trains | **done** |
 | 5 | Keras 3 backend; best-effort ONNX import | One `.ntb` emits torch and Keras; all three backends agree numerically | **done** |
 | 6 | Training inside NTB: isolated run subprocess, metrics, curves | Launch, monitor and resume a training run from the studio | **done** |
-| 7 | MCP server (spec 2026-07-28), stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | |
+| 7 | MCP server, stdio + streamable HTTP | An agent builds and validates an architecture without touching the UI | **done** |
 | 8 | Plugin SDK for third-party ops, docs site, example gallery | An op contributed from outside the repo loads and emits | |
+
+## Phase 7 in detail
+
+See [docs/mcp.md](mcp.md).
+
+- [x] Editing tools **generated from the command union**
+      ([ADR 12](adr/0012-mcp-tools-are-generated-from-the-command-bus.md)): the
+      name is the command's discriminator, the schema is the command's fields,
+      the body is the bus. Adding a command adds a tool, and a test says so
+- [x] `apply_commands` for several edits as one undo step, because `Batch`'s own
+      schema would embed every other command's
+- [x] Reading tools that answer what an agent asks: `describe_document` for
+      whether the last edit broke anything, `resolved_graph` for what a
+      generator or a spatial rule actually built, `generate_code` for the source
+- [x] Resources for what is worth reading whole: `ntb://doc`, `ntb://code/{backend}`,
+      `ntb://diagnostics`, `ntb://ops`, `ntb://schema`
+- [x] `start_run` and friends, so an agent can find out whether what it drew
+      trains
+- [x] `ntb mcp` on stdio, `ntb mcp --http` for streamable HTTP
+
+A tool result is a summary, not the document. The studio gets a whole snapshot
+because it draws one; an agent pays for what it reads.
 
 ## Phase 6 in detail
 
