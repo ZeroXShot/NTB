@@ -24,7 +24,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "pydantic>=2.9",
+    "pydantic>=2.13",
     "sympy>=1.13",
     "typer>=0.15",
 ]
@@ -34,7 +34,8 @@ torch = ["torch>=2.4"]
 keras = ["keras>=3.5"]
 onnx = ["onnx>=1.17", "onnxruntime>=1.19"]
 server = ["fastapi>=0.115", "uvicorn[standard]>=0.32", "websockets>=13"]
-all = ["ntb[torch,keras,onnx,server]"]
+mcp = ["mcp>=2.1"]
+all = ["ntb[torch,keras,onnx,server,mcp]"]
 
 [project.scripts]
 ntb = "ntb.cli.__main__:app"
