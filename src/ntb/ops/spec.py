@@ -140,6 +140,24 @@ class ShapeContext:
 ShapeRule: TypeAlias = Callable[[ShapeContext], dict[str, TensorType]]
 
 
+def guard_failure(guard: str, message: str, attrs: Mapping[str, Any]) -> str | None:
+    """Why a mapping must not be emitted for these attributes, or None.
+
+    Shared by every backend on purpose: a precondition that held for one and
+    not another would not be a precondition. Returns the message rather than
+    raising, so each emitter can raise its own error type.
+    """
+    if not guard:
+        return None
+    from ntb.spatial.expr import ExpressionError, evaluate
+
+    try:
+        holds = evaluate(guard, attrs)
+    except ExpressionError as exc:  # pragma: no cover - a malformed guard is a bug
+        return f"guard {guard!r}: {exc}"
+    return None if holds else (message or guard)
+
+
 class CallKind(StrEnum):
     """How a backend materialises an op."""
 
@@ -202,6 +220,12 @@ class BackendMapping:
     #: ("key_dim": "embed_dim // num_heads"). Evaluated by ntb.spatial.expr, so
     #: this is arithmetic, not code.
     derived: Mapping[str, str] = field(default_factory=dict)
+    #: Translate an attribute's *value* where a backend spells the same choice
+    #: differently: gelu's approximate is "tanh"/"none" in torch and a bool in
+    #: Keras. attr_map renames, derived computes; neither can say this, and an
+    #: emitter that special-cased it would be the thing ADR 3 exists to stop.
+    #: A value with no entry is passed through unchanged.
+    value_map: Mapping[str, Mapping[Any, Any]] = field(default_factory=dict)
     #: Fall an unconnected input back to another port (attention key -> query).
     default_inputs: Mapping[str, str] = field(default_factory=dict)
     #: Pass a named input as a keyword rather than positionally.
@@ -213,6 +237,21 @@ class BackendMapping:
         if rank is not None and rank in self.rank_targets:
             return self.rank_targets[rank]
         return self.target
+
+    def translate(self, attr: str, value: Any) -> Any:
+        """The backend's spelling of one attribute value.
+
+        A value_map lists individual choices, so a list attribute is never one
+        of them -- and is not hashable either, which is how this was found.
+        """
+        table = self.value_map.get(attr)
+        if table is None or isinstance(value, (list, tuple, dict, set)):
+            return value
+        return table.get(value, value)
+
+    def guard_failure(self, attrs: Mapping[str, Any]) -> str | None:
+        """Why this mapping must not be emitted for these attributes, or None."""
+        return guard_failure(self.guard, self.guard_message, attrs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,7 +297,14 @@ class OnnxMapping:
     pad_attr: str = ""
     #: NTB-defined op: emits into the ``ntb.ops`` domain with a reference impl.
     custom: bool = False
+    #: Same meaning as on BackendMapping. A precondition that holds for one
+    #: backend and not another would not be a precondition.
+    guard: str = ""
+    guard_message: str = ""
     notes: str = ""
+
+    def guard_failure(self, attrs: Mapping[str, Any]) -> str | None:
+        return guard_failure(self.guard, self.guard_message, attrs)
 
 
 @dataclass(frozen=True, slots=True)
