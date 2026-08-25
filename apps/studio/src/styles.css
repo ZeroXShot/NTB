@@ -439,3 +439,17 @@ button.tiny.danger {
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
+
+/* Blocks the render budget left out. Loud on purpose: a scene that silently
+   draws part of a model looks like a model with pieces missing. */
+.budget {
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  padding: 4px 8px;
+  border: 1px solid #f08c00;
+  border-radius: 3px;
+  color: #f08c00;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
