@@ -92,6 +92,7 @@ export class GraphView {
   private mode: ViewMode = "2d";
   private nodes: SceneNode[] = [];
   private edges: SceneEdge[] = [];
+  private hidden = 0;
   private selection = new Set<string>();
   private dragging: { id: string; offset: Vector3; vertical: boolean } | null = null;
   private orbiting: { x: number; y: number; pan: boolean } | null = null;
@@ -150,8 +151,16 @@ export class GraphView {
 
   setGraph(nodes: SceneNode[], edges: SceneEdge[]): void {
     this.nodes = nodes.slice(0, MAX_NODES);
+    // Drawing part of a model without saying so is worse than drawing none of
+    // it: everything downstream looks like a model that is missing blocks.
+    this.hidden = nodes.length - this.nodes.length;
     this.edges = edges;
     this.rebuild();
+  }
+
+  /** Blocks the render budget left out. Zero unless the document is huge. */
+  hiddenCount(): number {
+    return this.hidden;
   }
 
   setSelection(ids: Iterable<string>): void {
@@ -173,8 +182,11 @@ export class GraphView {
     const high = [-Infinity, -Infinity, -Infinity];
     for (const node of this.nodes) {
       for (let axis = 0; axis < 3; axis += 1) {
-        low[axis] = Math.min(low[axis]!, node.pos[axis]!);
-        high[axis] = Math.max(high[axis]!, node.pos[axis]!);
+        // A block is its extent, not its centre: framing centres alone clips
+        // anything large out of the view it was asked to fit.
+        const half = (node.extent[axis] ?? 1) / 2;
+        low[axis] = Math.min(low[axis]!, node.pos[axis]! - half);
+        high[axis] = Math.max(high[axis]!, node.pos[axis]! + half);
       }
     }
     this.target.set(
