@@ -288,6 +288,35 @@ def studio(
 
 
 @app.command()
+def mcp(
+    path: Annotated[Path | None, typer.Argument(help="Open this .ntb file.")] = None,
+    http: Annotated[
+        bool, typer.Option("--http", help="Serve streamable HTTP instead of stdio.")
+    ] = False,
+    host: Annotated[str, typer.Option(help="Interface to bind, with --http.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Port to listen on, with --http.")] = 8757,
+) -> None:
+    """Serve the model context protocol, so an agent can build a model."""
+    try:
+        from ntb.mcp import serve as serve_mcp
+    except ImportError as exc:
+        typer.secho(
+            "the MCP server needs the mcp extra: pip install 'ntb[mcp]'",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    if path is not None and not path.is_file():
+        typer.secho(f"{path}: no such file", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    # stdio is the transport: anything else on standard output corrupts it.
+    if http:
+        typer.secho(f"NTB MCP on http://{host}:{port}/mcp  (ctrl-c to stop)", fg=typer.colors.GREEN)
+    serve_mcp(path, http=http, host=host, port=port)
+
+
+@app.command()
 def run(
     path: Annotated[Path, typer.Argument(help="Path to a .ntb file.")],
     epochs: Annotated[int, typer.Option(help="Passes over the data.")] = 1,
