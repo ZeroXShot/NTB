@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ntb-example-op"
+version = "0.1.0"
+description = "An example NTB op contributed from outside the NTB repository"
+requires-python = ">=3.11"
+dependencies = ["ntb"]
+
+# This is the whole plugin mechanism. NTB reads this group on startup and
+# imports what it names; importing the module registers the op.
+[project.entry-points."ntb.ops"]
+example = "ntb_example_op"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ntb_example_op"]
