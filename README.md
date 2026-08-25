@@ -3,12 +3,14 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.6.0.** Every phase on [the roadmap](docs/roadmap.md) is done: the
+> **Status: 0.7.0.** Phases 0-9 on [the roadmap](docs/roadmap.md) are done: the
 > IR, a 31-op registry, symbolic shape inference, validation, all three backends
 > (torch, Keras 3, ONNX), ONNX import, the studio in 2D and 3D, the spatial
 > semantics that make the project worth building, training with live curves, the
-> MCP server, and ops contributed from outside the repo. Not on PyPI yet —
-> install from a checkout.
+> MCP server, ops contributed from outside the repo, and a measured
+> [coverage report](docs/coverage.md). What is left is expanding that coverage
+> and making the 3D view look like a network rather than stacked cubes. Not on
+> PyPI yet — install from a checkout.
 
 ## Why another model builder
 
@@ -64,6 +66,7 @@ ntb run examples/mlp.ntb --epochs 3 --loss cross_entropy
 ntb runs                                 # what has run, and how it went
 ntb mcp                                  # the same editing, for an agent
 ntb plugins                              # ops contributed from outside NTB
+ntb coverage                             # how much of torch, Keras and ONNX it reaches
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
