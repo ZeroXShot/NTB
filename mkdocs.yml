@@ -30,6 +30,7 @@ nav:
   - Training: training.md
   - Agents (MCP): mcp.md
   - Writing an op: plugins.md
+  - Coverage: coverage.md
   - Roadmap: roadmap.md
   - Decisions:
       - Index: adr/README.md
@@ -46,6 +47,7 @@ nav:
       - adr/0011-training-runs-in-their-own-process.md
       - adr/0012-mcp-tools-are-generated-from-the-command-bus.md
       - adr/0013-third-party-ops-are-entry-points.md
+      - adr/0014-rendering-layers-and-id-buffer-picking.md
 
 markdown_extensions:
   - admonition
