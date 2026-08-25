@@ -73,6 +73,12 @@ This is the most useful contribution right now, and it is a declaration:
 Error messages are part of the feature. `input has 3 channels, but in_channels is
 64` is the standard; `invalid shape` is not.
 
+An op that is *not* standard — one torch, Keras and ONNX do not all already have
+— probably belongs in a package of your own rather than here. The declaration is
+the same one; see [docs/plugins.md](docs/plugins.md) and the working example in
+[`examples/plugin`](examples/plugin). Contributing it here is for ops whose
+meaning NTB can promise on every machine.
+
 ## Before opening a PR
 
 * `pytest -q`, `ruff check .`, `ruff format .`, `mypy` all clean.
