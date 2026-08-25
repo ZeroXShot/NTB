@@ -3,11 +3,11 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.4.0, early.** The IR, a 31-op registry, symbolic shape inference,
+> **Status: 0.5.0, early.** The IR, a 31-op registry, symbolic shape inference,
 > validation, all three backends (torch, Keras 3, ONNX), ONNX import, the studio
-> in 2D and 3D, the spatial semantics that make the project worth building, and
-> training with live curves all work today. The MCP server and the plugin SDK
-> are what is left. See [the roadmap](docs/roadmap.md). Nothing is on PyPI until
+> in 2D and 3D, the spatial semantics that make the project worth building,
+> training with live curves and the MCP server all work today. The plugin SDK is
+> what is left. See [the roadmap](docs/roadmap.md). Nothing is on PyPI until
 > every phase is done.
 
 ## Why another model builder
@@ -26,7 +26,7 @@ three dimensions expressible at all.
 
 ```bash
 git clone https://github.com/ZeroXShot/NTB && cd NTB
-pip install -e ".[all]"    # torch, Keras 3, ONNX and the studio server
+pip install -e ".[all]"    # torch, Keras 3, ONNX, the studio and the MCP server
 cd apps/studio && npm install && npm run build && cd ../..
 ```
 
@@ -34,7 +34,7 @@ That last line is only for a source checkout. The studio bundle is build output
 and is not in git, so without it `ntb studio` serves a page saying so. A
 released wheel ships the bundle already built and needs no Node.
 
-Extras are `torch`, `keras`, `onnx`, `server` and `all`; the core installs
+Extras are `torch`, `keras`, `onnx`, `server`, `mcp` and `all`; the core installs
 without any of them and can still author, validate and inspect a model. Keras 3
 needs a backend of its own: `KERAS_BACKEND=torch` reuses the one you have.
 
@@ -61,6 +61,7 @@ ntb emit examples/mlp.ntb --backend onnx --out mlp.onnx
 ntb import mlp.onnx --out seeded.ntb     # seed a document from a model you have
 ntb run examples/mlp.ntb --epochs 3 --loss cross_entropy
 ntb runs                                 # what has run, and how it went
+ntb mcp                                  # the same editing, for an agent
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
@@ -141,6 +142,18 @@ model's own inputs. That answers *does this architecture train, and how fast*,
 which is the question you have while you are still drawing it, and nothing else.
 [docs/training.md](docs/training.md) covers bringing your own.
 
+## Agents
+
+```bash
+pip install "ntb[mcp]"
+claude mcp add ntb -- ntb mcp
+```
+
+The MCP tools *are* the command bus: each one is generated from a command, so an
+agent's edit is validated, undoable and emitted by the same code as a person's
+([ADR 12](docs/adr/0012-mcp-tools-are-generated-from-the-command-bus.md)).
+Adding a command to the bus adds a tool. See [docs/mcp.md](docs/mcp.md).
+
 ## How it fits together
 
 ```
@@ -168,7 +181,7 @@ Four rules hold the project together, and are written up in
 
 1. **One IR.** Studio, CLI, MCP, emitters — everything reads NTB-IR.
 2. **One command bus.** Every mutation goes through `apply_command`, so undo,
-   audit and the future MCP server are the same mechanism.
+   audit and the MCP tools an agent uses are the same mechanism.
 3. **The op registry is data.** Ports, attributes, shape rules and all three
    backend mappings are declared once per op; validation, emission and the
    parity tests are derived from that declaration.
