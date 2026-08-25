@@ -112,7 +112,7 @@ function open(set: (partial: Partial<Studio>) => void, get: () => Studio): void 
     const message = JSON.parse(event.data) as { type: string } & Record<string, unknown>;
     if (message.type === "state") {
       const snapshot = message as unknown as Snapshot;
-      const alive = new Set(rootModule(snapshot)?.nodes?.map((node) => node.id) ?? []);
+      const alive = blockKeys(snapshot);
       set({
         snapshot,
         selection: get().selection.filter((id) => alive.has(id)),
@@ -131,6 +131,17 @@ function open(set: (partial: Partial<Studio>) => void, get: () => Studio): void 
       set({ error: String(message.message) });
     }
   };
+}
+
+/**
+ * Everything on the canvas that can be selected, by key.
+ *
+ * Block keys, not node ids. A generator's repetition (`stack-0`) is a block and
+ * is not an authored node, so filtering a selection against the node list
+ * dropped it on the very next broadcast.
+ */
+export function blockKeys(snapshot: Snapshot | null): Set<string> {
+  return new Set((snapshot?.derived?.blocks ?? []).map((block) => block.key));
 }
 
 export function rootModule(snapshot: Snapshot | null): Module | undefined {
