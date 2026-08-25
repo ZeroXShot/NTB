@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 
@@ -22,6 +22,9 @@ from ntb.shapes import infer_shapes
 from ntb.spatial import NotResolvable, ResolveError, resolve
 from ntb.validate import Severity
 from ntb.validate import validate as run_validation
+
+if TYPE_CHECKING:
+    from ntb.ops.coverage import Report
 
 app = typer.Typer(
     name="ntb",
@@ -69,6 +72,80 @@ def ops(
         for spec in specs:
             backends = ", ".join(spec.backends()) or "none"
             typer.echo(f"  {spec.name:<20} [{backends}]  {spec.doc.splitlines()[0]}")
+
+
+@app.command()
+def coverage(
+    write: Annotated[bool, typer.Option("--write", help="Rewrite docs/coverage.md.")] = False,
+    check: Annotated[
+        bool, typer.Option("--check", help="Fail if docs/coverage.md is stale.")
+    ] = False,
+    surface: Annotated[str | None, typer.Option(help="List what one surface misses.")] = None,
+) -> None:
+    """Measure the registry against torch, Keras and ONNX."""
+    from ntb.ops.coverage import audit
+
+    report = audit()
+    if write or check:
+        _coverage_file(report, write=write)
+        return
+
+    if surface is not None:
+        found = report.surface(surface)
+        if found is None or not found.available:
+            typer.secho(f"no surface {surface!r} to report on", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=2)
+        typer.echo(f"not covered in {found.name}:")
+        typer.echo("  " + " ".join(found.missing))
+        return
+
+    typer.echo(f"{report.ops} built-in ops")
+    for item in report.surfaces:
+        if not item.available:
+            typer.echo(f"  {item.name:<14} not installed")
+            continue
+        bar = f"{len(item.covered)}/{item.total}"
+        typer.echo(f"  {item.name:<14} {bar:>9}  {item.percent:5.1f}%")
+
+    wanted = {name for item in report.surfaces for name in item.wanted()}
+    if wanted:
+        # A judgement, not a measurement. It says so here and in the file.
+        typer.echo("\nwanted next: " + " ".join(sorted(wanted)))
+    typer.echo("\n--surface torch.nn lists everything one backend is missing")
+
+
+def _coverage_file(report: Report, *, write: bool) -> None:
+    from ntb.ops.coverage import as_markdown
+
+    missing = [item.name for item in report.surfaces if not item.available]
+    if missing:
+        # Comparing a report that could not measure half its subject would fail
+        # for the wrong reason, and teach people to ignore the check.
+        typer.secho(
+            f"cannot measure {', '.join(sorted(set(missing)))}: install ntb[torch,keras,onnx]",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+
+    target = Path(__file__).resolve().parents[3] / "docs" / "coverage.md"
+    generated = as_markdown(report)
+    if write:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(generated, encoding="utf-8")
+        typer.echo(f"wrote {target}")
+        return
+
+    current = target.read_text(encoding="utf-8") if target.is_file() else ""
+    if current == generated:
+        typer.secho("docs/coverage.md is current", fg=typer.colors.GREEN)
+        return
+    typer.secho(
+        "docs/coverage.md is stale; run `ntb coverage --write` and commit it",
+        fg=typer.colors.RED,
+        err=True,
+    )
+    raise typer.Exit(code=1)
 
 
 @app.command()
