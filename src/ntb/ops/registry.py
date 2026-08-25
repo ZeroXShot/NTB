@@ -32,6 +32,14 @@ class OpRegistry:
             raise UnknownOpError(name, tuple(sorted(self._specs)))
         return spec
 
+    def discard(self, name: str) -> None:
+        """Take an op back out. Only for rejecting a plugin that misbehaved.
+
+        The registry is otherwise append-only: removing an op would change what
+        existing `.ntb` files mean.
+        """
+        self._specs.pop(name, None)
+
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(self._specs))
 
