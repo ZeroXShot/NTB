@@ -121,7 +121,6 @@
           "type": "string"
         },
         "module": {
-          "default": "out",
           "description": "Id of the Module to instantiate.",
           "maxLength": 256,
           "minLength": 1,
@@ -160,6 +159,7 @@
       },
       "required": [
         "id",
+        "module",
         "count"
       ],
       "title": "Generator",
@@ -618,7 +618,6 @@
       "type": "string"
     },
     "root": {
-      "default": "out",
       "description": "Id of the module that is the model itself.",
       "maxLength": 256,
       "minLength": 1,
@@ -632,6 +631,9 @@
       "type": "integer"
     }
   },
+  "required": [
+    "root"
+  ],
   "title": "Document",
   "type": "object"
 }
