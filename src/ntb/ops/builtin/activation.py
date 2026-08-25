@@ -120,8 +120,10 @@ GELU = register(
         keras=BackendMapping(
             target="keras.activations.gelu",
             kind=CallKind.FUNCTION,
+            attr_map={"approximate": "approximate"},
+            value_map={"approximate": {"tanh": True, "none": False}},
             imports=("keras",),
-            notes="Takes approximate as a bool; the emitter maps 'tanh' to True.",
+            notes="Takes approximate as a bool where torch and ONNX take a string.",
         ),
         onnx=OnnxMapping(op_type="Gelu", since_opset=20, attr_map={"approximate": "approximate"}),
         parity=ParityCase(inputs={"in": (2, 6)}),
