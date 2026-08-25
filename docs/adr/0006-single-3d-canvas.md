@@ -1,6 +1,14 @@
 # 6. One 3D canvas; 2D is an orthographic camera
 
-**Status:** Accepted · 2026-08-24
+**Status:** Accepted · 2026-08-24 · amended by
+[ADR 14](0014-rendering-layers-and-id-buffer-picking.md)
+
+> **Amendment.** Two sentences below describe a system that was planned and not
+> built: the renderer is `WebGLRenderer` with no WebGPU path, and picking
+> raycasts the instanced mesh rather than using an id buffer. ADR 14 records
+> what is true, and why the id-buffer half is now being built rather than
+> dropped. The central decision here -- one scene, one selection, one set of
+> interactions, with 2D as an orthographic camera -- stands unchanged.
 
 ## Context
 
