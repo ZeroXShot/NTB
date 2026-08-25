@@ -1,0 +1,59 @@
+site_name: NTB
+site_description: Build AI architectures graphically, in 2D and in 3D.
+site_url: https://zeroxshot.github.io/NTB/
+repo_url: https://github.com/ZeroXShot/NTB
+repo_name: ZeroXShot/NTB
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle: { icon: material/weather-night, name: Dark }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle: { icon: material/weather-sunny, name: Light }
+
+nav:
+  - Home: index.md
+  - Examples: examples.md
+  - Geometry: spatial.md
+  - The studio: studio.md
+  - Training: training.md
+  - Agents (MCP): mcp.md
+  - Writing an op: plugins.md
+  - Roadmap: roadmap.md
+  - Decisions:
+      - Index: adr/README.md
+      - adr/0001-ntb-ir-is-the-single-source-of-truth.md
+      - adr/0002-geometry-is-semantic.md
+      - adr/0003-op-registry-is-declarative.md
+      - adr/0004-pure-python-wheel.md
+      - adr/0005-single-command-bus.md
+      - adr/0006-single-3d-canvas.md
+      - adr/0007-keras3-covers-tensorflow.md
+      - adr/0008-canonical-json-on-disk.md
+      - adr/0009-the-server-broadcasts-snapshots.md
+      - adr/0010-the-studio-server-is-local-only.md
+      - adr/0011-training-runs-in-their-own-process.md
+      - adr/0012-mcp-tools-are-generated-from-the-command-bus.md
+      - adr/0013-third-party-ops-are-entry-points.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc: { permalink: true }
+  - pymdownx.highlight: { anchor_linenums: true }
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+
+plugins:
+  - search
