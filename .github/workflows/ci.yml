@@ -73,6 +73,43 @@ jobs:
       - name: The emitted code must still match the golden files
         run: pytest -q tests/test_emit_torch.py tests/test_emit_keras.py
 
+  # The site deploys from main. Building it here means a dead link fails the
+  # pull request instead of the deployment.
+  docs:
+    name: docs build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install "mkdocs-material>=9,<10" "mkdocs<2"
+      - run: mkdocs build --strict
+
+  # The loader is unit-tested against modules on sys.path. This job tests the
+  # half that only pip can do: that an installed distribution's entry point is
+  # discovered at all, and that its op then behaves like every other op.
+  plugin:
+    name: an outside op loads and emits
+    runs-on: ubuntu-latest
+    env:
+      KERAS_BACKEND: torch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -e ".[onnx,keras]" pytest
+      - run: python -m pip install --no-deps -e examples/plugin
+      - run: ntb plugins
+      - name: The registry, the CLI and the parity harness must all see it
+        run: |
+          ntb ops | grep -q "example.softsign"
+          pytest -q -k softsign -m "torch or keras or onnx"
+
   # The frontend generates its types from schema/ntb-ir-v*.json, which is itself
   # generated from the pydantic models. If the checked-in copy drifts, the
   # studio starts lying about the IR -- so drift fails the build.
