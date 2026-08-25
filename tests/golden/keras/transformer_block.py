@@ -12,7 +12,7 @@ def build_transformer_encoder_block() -> keras.Model:
     res1 = keras.ops.add(drop1, norm1)
     norm2 = keras.layers.LayerNormalization(epsilon=1e-05, scale=True)(res1)
     ff_in = keras.layers.Dense(units=2048, use_bias=True)(norm2)
-    act = keras.activations.gelu(ff_in)
+    act = keras.activations.gelu(ff_in, approximate=True)
     ff_out = keras.layers.Dense(units=512, use_bias=True)(act)
     drop2 = keras.layers.Dropout(rate=0.1)(ff_out)
     res2 = keras.ops.add(drop2, res1)
