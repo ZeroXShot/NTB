@@ -49,7 +49,7 @@ export interface Document {
   /**
    * Id of the module that is the model itself.
    */
-  root?: string;
+  root: string;
   schema_version?: number;
 }
 /**
@@ -131,7 +131,7 @@ export interface Generator {
   /**
    * Id of the Module to instantiate.
    */
-  module?: string;
+  module: string;
   /**
    * @minItems 3
    * @maxItems 3
