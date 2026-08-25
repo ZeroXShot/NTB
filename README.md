@@ -3,12 +3,12 @@
 Build AI architectures graphically, in 2D **and** in 3D, then emit them to
 PyTorch, Keras 3 (TensorFlow / JAX) or ONNX.
 
-> **Status: 0.5.0, early.** The IR, a 31-op registry, symbolic shape inference,
-> validation, all three backends (torch, Keras 3, ONNX), ONNX import, the studio
-> in 2D and 3D, the spatial semantics that make the project worth building,
-> training with live curves and the MCP server all work today. The plugin SDK is
-> what is left. See [the roadmap](docs/roadmap.md). Nothing is on PyPI until
-> every phase is done.
+> **Status: 0.6.0.** Every phase on [the roadmap](docs/roadmap.md) is done: the
+> IR, a 31-op registry, symbolic shape inference, validation, all three backends
+> (torch, Keras 3, ONNX), ONNX import, the studio in 2D and 3D, the spatial
+> semantics that make the project worth building, training with live curves, the
+> MCP server, and ops contributed from outside the repo. Not on PyPI yet —
+> install from a checkout.
 
 ## Why another model builder
 
@@ -41,9 +41,10 @@ needs a backend of its own: `KERAS_BACKEND=torch` reuses the one you have.
 The wheel is pure Python (`py3-none-any`), so Linux, macOS and Windows on both
 x86_64 and arm64 are supported by construction. It installs into the same
 environment as your existing torch or TensorFlow, so it sees your actual
-versions and hardware. It is not published to PyPI yet: the format stays open to
-change until every phase is finished, and the first `.ntb` files in circulation
-should come from one that has stopped moving.
+versions and hardware. It is not on PyPI yet; the release workflow is ready and
+tested, and the tag is the only thing missing.
+
+Full documentation: **[zeroxshot.github.io/NTB](https://zeroxshot.github.io/NTB/)**.
 
 ## Try it
 
@@ -62,6 +63,7 @@ ntb import mlp.onnx --out seeded.ntb     # seed a document from a model you have
 ntb run examples/mlp.ntb --epochs 3 --loss cross_entropy
 ntb runs                                 # what has run, and how it went
 ntb mcp                                  # the same editing, for an agent
+ntb plugins                              # ops contributed from outside NTB
 ```
 
 `ntb shapes examples/cnn3d.ntb` prints, among others:
@@ -107,7 +109,9 @@ makes the network taller, and the generated torch grows with it. Move a column
 and the topology changes, because in NTB position *is* the model.
 
 [docs/spatial.md](docs/spatial.md) is the reference for the four rules,
-generators, and the parameter expressions that make a stack widen with depth.
+generators, and the parameter expressions that make a stack widen with depth;
+[docs/examples.md](docs/examples.md) walks the five example documents, smallest
+first.
 
 ## The studio
 
@@ -154,6 +158,23 @@ agent's edit is validated, undoable and emitted by the same code as a person's
 ([ADR 12](docs/adr/0012-mcp-tools-are-generated-from-the-command-bus.md)).
 Adding a command to the bus adds a tool. See [docs/mcp.md](docs/mcp.md).
 
+## Ops you write yourself
+
+NTB is for architectures no framework has a name for yet, so sooner or later it
+will not have the op you need. Adding one does not mean forking NTB: declare
+`[project.entry-points."ntb.ops"]` in a package of your own and NTB finds it.
+
+```bash
+pip install -e examples/plugin
+ntb plugins        # example -> ntb_example_op from ntb-example-op
+```
+
+From then on it is an op — palette, `ntb ops`, MCP tools, all three emitters —
+and the numeric parity harness verifies it against onnxruntime and Keras without
+being told it exists, because the harness is generated from the registry.
+[docs/plugins.md](docs/plugins.md) is the guide; `examples/plugin` is three
+files.
+
 ## How it fits together
 
 ```
@@ -184,7 +205,8 @@ Four rules hold the project together, and are written up in
    audit and the MCP tools an agent uses are the same mechanism.
 3. **The op registry is data.** Ports, attributes, shape rules and all three
    backend mappings are declared once per op; validation, emission and the
-   parity tests are derived from that declaration.
+   parity tests are derived from that declaration — including for an op that
+   arrives from someone else's package.
 4. **Geometry is semantic.** See [ADR 2](docs/adr/0002-geometry-is-semantic.md).
 
 ## Contributing
