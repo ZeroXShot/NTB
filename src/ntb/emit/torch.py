@@ -107,6 +107,9 @@ class _Builder:
             raise EmitError(f"op {node.op!r} has no torch mapping")
 
         attrs = spec.resolved_attrs(node.attrs)
+        failure = mapping.guard_failure(attrs)
+        if failure is not None:
+            raise EmitError(f"node {node.id!r}: {failure}")
         rank = self._input_rank(node, spec)
         arguments, keywords = self._call_inputs(node, spec, mapping)
         kwargs = _backend_kwargs(mapping, attrs)
@@ -264,7 +267,7 @@ def _backend_kwargs(mapping: BackendMapping, attrs: dict[str, object]) -> dict[s
     kwargs: dict[str, object] = {}
     for ntb_name, backend_name in mapping.attr_map.items():
         if ntb_name in attrs and attrs[ntb_name] is not None:
-            kwargs[backend_name] = attrs[ntb_name]
+            kwargs[backend_name] = mapping.translate(ntb_name, attrs[ntb_name])
     kwargs.update(mapping.constants)
     return kwargs
 
