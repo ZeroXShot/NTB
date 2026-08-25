@@ -106,4 +106,4 @@ by hand; the inspector has exact number fields for all three axes.
 
 The window says `offline` when the socket is down; it reconnects on its own. If
 the page says the studio is not built, you are running from a source checkout
-without a frontend bundle — see [CONTRIBUTING](../CONTRIBUTING.md).
+without a frontend bundle — see [CONTRIBUTING](https://github.com/ZeroXShot/NTB/blob/main/CONTRIBUTING.md).
