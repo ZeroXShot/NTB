@@ -87,6 +87,25 @@ jobs:
       - run: python -m pip install "mkdocs-material>=9,<10" "mkdocs<2"
       - run: mkdocs build --strict
 
+  # "Are all the layers there?" deserves a number. The generated report is
+  # checked in, so a change in what NTB reaches -- or in what torch ships -- is
+  # a diff somebody reviews rather than a fact nobody notices.
+  coverage:
+    name: coverage report is current
+    runs-on: ubuntu-latest
+    env:
+      KERAS_BACKEND: torch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install -e ".[onnx,keras]"
+      - run: ntb coverage
+      - run: ntb coverage --check
+
   # The loader is unit-tested against modules on sys.path. This job tests the
   # half that only pip can do: that an installed distribution's entry point is
   # discovered at all, and that its op then behaves like every other op.
@@ -143,6 +162,11 @@ jobs:
       - run: npm run types:check
         working-directory: apps/studio
       - run: npx tsc --noEmit
+        working-directory: apps/studio
+      # The first tests the frontend has ever had. Only what runs without a GL
+      # context so far; the scene's own tests need the renderer refactor to have
+      # something a counter can measure.
+      - run: npm run test
         working-directory: apps/studio
       - run: npm run build
         working-directory: apps/studio
