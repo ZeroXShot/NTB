@@ -23,3 +23,4 @@ an accepted record: the point is the trail.
 | [0011](0011-training-runs-in-their-own-process.md) | A training run gets its own process | Accepted |
 | [0012](0012-mcp-tools-are-generated-from-the-command-bus.md) | MCP tools are generated from the command bus | Accepted |
 | [0013](0013-third-party-ops-are-entry-points.md) | Third-party ops arrive through entry points | Accepted |
+| [0014](0014-rendering-layers-and-id-buffer-picking.md) | Rendering layers, id-buffer picking, and a render budget | Accepted |
