@@ -71,6 +71,28 @@ def ops(
             typer.echo(f"  {spec.name:<20} [{backends}]  {spec.doc.splitlines()[0]}")
 
 
+@app.command()
+def plugins() -> None:
+    """List the ops contributed by installed plugins, and any that failed."""
+    from ntb.ops.plugins import GROUP, loaded
+
+    report = loaded()
+    if not report.plugins and not report.problems:
+        typer.echo(f"no plugins installed (entry point group {GROUP!r})")
+    for plugin in report.plugins:
+        where = f" from {plugin.distribution}" if plugin.distribution else ""
+        typer.echo(f"{plugin.name} -> {plugin.value}{where}")
+        for name in plugin.ops:
+            typer.echo(f"  {name}")
+    for problem in report.problems:
+        # A plugin that failed is reported, never raised: NTB still opens a
+        # document that does not use it.
+        typer.secho(f"{problem.name} -> {problem.value}", fg=typer.colors.RED, err=True)
+        typer.secho(f"  {problem.reason}", fg=typer.colors.RED, err=True)
+    if report.problems:
+        raise typer.Exit(code=1)
+
+
 @app.command("schema")
 def schema_command(
     write: Annotated[bool, typer.Option("--write", help="Rewrite the checked-in schema.")] = False,
